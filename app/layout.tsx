@@ -7,8 +7,7 @@ import { cn } from "@/lib/utils"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "repflaws",
-  description: "Get AI summaries of product flaws from Reddit.",
+  title: "courselens",
 }
 
 export default function RootLayout({
