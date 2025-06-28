@@ -23,7 +23,7 @@ import {
 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import type { FC } from "react"
 
 interface PostData {
@@ -68,12 +68,12 @@ const parseMarkdownSections = (markdownText: string | undefined) => {
     return []
   }
   return markdownText
-    .split(/\n(?=#{3,4}\s)/)
+    .split(/\n(?=#{2,4}\s)/)
     .map((section) => {
       const trimmed = section.trim()
       if (!trimmed) return null
       const lines = trimmed.split("\n")
-      const title = (lines.shift() || "").replace(/^#{3,4}\s/, "").trim()
+      const title = (lines.shift() || "").replace(/^#{2,4}\s/, "").trim()
       let content = lines
         .join("\n")
         .trim()
@@ -110,6 +110,25 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
   const hasAIAnalysis = results?.ai_analysis?.success && results?.ai_analysis?.ai_summary
   const hasRedditData = results?.links && results?.links.length > 0
   const hasDatabaseData = results?.ucr_database_included || results?.raw_data?.ucr_database
+
+  const tabs = useMemo(
+    () => [
+      { id: "analysis" as const, label: "AI Analysis", icon: Brain, available: hasAIAnalysis },
+      { id: "reddit" as const, label: "Reddit Data", icon: MessageCircle, available: hasRedditData },
+      { id: "database" as const, label: "UCR Database", icon: Database, available: hasDatabaseData },
+    ],
+    [hasAIAnalysis, hasRedditData, hasDatabaseData],
+  )
+
+  useEffect(() => {
+    const currentTab = tabs.find((t) => t.id === activeTab)
+    if (!currentTab || !currentTab.available) {
+      const firstAvailable = tabs.find((t) => t.available)
+      if (firstAvailable) {
+        setActiveTab(firstAvailable.id)
+      }
+    }
+  }, [tabs, activeTab])
 
   const parsedSections = useMemo(() => {
     if (results?.ai_analysis?.ai_summary) {
@@ -172,15 +191,8 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
     td: (props: MarkdownComponentProps) => <td className="px-4 py-3 text-white/90 text-sm" {...props} />,
   }
 
-  const tabs = [
-    { id: "analysis" as const, label: "AI Analysis", icon: Brain, available: hasAIAnalysis },
-    { id: "reddit" as const, label: "Reddit Data", icon: MessageCircle, available: hasRedditData },
-    { id: "database" as const, label: "UCR Database", icon: Database, available: hasDatabaseData },
-  ]
-
   if (!results) return null
 
-  
   const numColumns = 3
   const columns: { title: string; content: string }[][] = Array.from({ length: numColumns }, () => [])
   parsedSections.forEach((section, index) => {

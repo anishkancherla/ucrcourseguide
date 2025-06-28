@@ -152,7 +152,7 @@ export default function HomePage() {
           </div>
           <div
             className={`w-full space-y-8 transition-all duration-500 ${
-              results ? "max-w-full" : "max-w-2xl"
+              results ? "max-w-full px-4" : "max-w-2xl"
             }`}
           >
             {!results && !isLoading && <SearchForm onSearch={handleSearch} />}
