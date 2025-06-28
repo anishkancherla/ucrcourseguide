@@ -150,7 +150,11 @@ export default function HomePage() {
               <span className="sr-only">Share</span>
             </Button>
           </div>
-          <div className="w-full space-y-8">
+          <div
+            className={`w-full space-y-8 transition-all duration-500 ${
+              results ? "max-w-full" : "max-w-2xl"
+            }`}
+          >
             {!results && !isLoading && <SearchForm onSearch={handleSearch} />}
             {isLoading && (
               <div className="flex flex-col items-center justify-center text-white/80">
