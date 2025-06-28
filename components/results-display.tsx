@@ -133,27 +133,41 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
     return []
   }, [results?.ai_analysis?.ai_summary])
 
+  type MarkdownComponentProps = {
+    node?: any
+    children?: React.ReactNode
+    [key: string]: any
+  }
+
   const markdownComponents = {
-    h4: (props: any) => <h4 className="text-lg font-semibold text-white mt-4 mb-2" {...props} />,
-    h3: (props: any) => <h3 className="text-xl font-bold text-white mt-4 mb-2" {...props} />,
-    ul: (props: any) => <ul className="list-disc list-inside space-y-1.5 pl-2 text-white/80" {...props} />,
-    ol: (props: any) => <ol className="list-decimal list-inside space-y-1.5 pl-2 text-white/80" {...props} />,
-    li: (props: any) => <li className="text-white/80" {...props} />,
-    p: (props: any) => <p className="text-white/90 mb-3" {...props} />,
-    strong: (props: any) => <strong className="text-white font-semibold" {...props} />,
-    em: (props: any) => <em className="text-purple-300" {...props} />,
-    table: (props: any) => (
+    h4: (props: MarkdownComponentProps) => (
+      <h4 className="text-lg font-semibold text-white mt-4 mb-2" {...props} />
+    ),
+    h3: (props: MarkdownComponentProps) => (
+      <h3 className="text-xl font-bold text-white mt-4 mb-2" {...props} />
+    ),
+    ul: (props: MarkdownComponentProps) => (
+      <ul className="list-disc list-inside space-y-1.5 pl-2 text-white/80" {...props} />
+    ),
+    ol: (props: MarkdownComponentProps) => (
+      <ol className="list-decimal list-inside space-y-1.5 pl-2 text-white/80" {...props} />
+    ),
+    li: (props: MarkdownComponentProps) => <li className="text-white/80" {...props} />,
+    p: (props: MarkdownComponentProps) => <p className="text-white/90 mb-3" {...props} />,
+    strong: (props: MarkdownComponentProps) => <strong className="text-white font-semibold" {...props} />,
+    em: (props: MarkdownComponentProps) => <em className="text-purple-300" {...props} />,
+    table: (props: MarkdownComponentProps) => (
       <div className="overflow-x-auto my-4">
         <table className="w-full border-collapse bg-white/5 rounded-lg overflow-hidden shadow-lg" {...props} />
       </div>
     ),
-    thead: (props: any) => <thead className="bg-white/10" {...props} />,
-    tbody: (props: any) => <tbody className="divide-y divide-white/10" {...props} />,
-    tr: (props: any) => <tr className="hover:bg-white/5 transition-colors" {...props} />,
-    th: (props: any) => (
+    thead: (props: MarkdownComponentProps) => <thead className="bg-white/10" {...props} />,
+    tbody: (props: MarkdownComponentProps) => <tbody className="divide-y divide-white/10" {...props} />,
+    tr: (props: MarkdownComponentProps) => <tr className="hover:bg-white/5 transition-colors" {...props} />,
+    th: (props: MarkdownComponentProps) => (
       <th className="px-4 py-3 text-left font-semibold text-white text-sm uppercase tracking-wider" {...props} />
     ),
-    td: (props: any) => <td className="px-4 py-3 text-white/90 text-sm" {...props} />,
+    td: (props: MarkdownComponentProps) => <td className="px-4 py-3 text-white/90 text-sm" {...props} />,
   }
 
   const tabs = [
