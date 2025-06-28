@@ -15,6 +15,16 @@ interface RedditLink {
   comments?: number
 }
 
+interface PostData {
+  post: {
+    title: string
+    url: string
+    subreddit: string
+    score: number
+    num_comments: number
+  }
+}
+
 interface SearchResults {
   summary: string
   links: RedditLink[]
@@ -24,7 +34,7 @@ interface SearchResults {
   ucr_database_included?: boolean
   raw_data?: {
     course: string
-    posts: any[]
+    posts: PostData[]
     ucr_database: string
   }
   ai_analysis?: {
@@ -65,7 +75,7 @@ export default function HomePage() {
         
         // if we have raw_data, extract links; otherwise use metadata for context
         if (data.raw_data && data.raw_data.posts) {
-          data.raw_data.posts.forEach((postData: any) => {
+          data.raw_data.posts.forEach((postData: PostData) => {
             if (postData.post) {
               links.push({
                 title: postData.post.title,
@@ -93,7 +103,7 @@ export default function HomePage() {
       } else if (data.success && data.raw_data) {
         // fallback: if ai failed but we have raw data
         const links: RedditLink[] = []
-        data.raw_data.posts.forEach((postData: any) => {
+        data.raw_data.posts.forEach((postData: PostData) => {
           if (postData.post) {
             links.push({
               title: postData.post.title,

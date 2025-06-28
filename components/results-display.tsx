@@ -2,10 +2,20 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Bot, LinkIcon, ArrowLeft, Brain, Users, Clock, BookOpen, Lightbulb, AlertTriangle, Database, MessageCircle } from "lucide-react"
+import { LinkIcon, ArrowLeft, Brain, Users, AlertTriangle, Database, MessageCircle } from "lucide-react"
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useState } from "react"
+
+interface PostData {
+  post: {
+    title: string
+    url: string
+    subreddit: string
+    score: number
+    num_comments: number
+  }
+}
 
 interface ResultsDisplayProps {
   results: {
@@ -27,7 +37,7 @@ interface ResultsDisplayProps {
     ucr_database_included?: boolean
     raw_data?: {
       course: string
-      posts: any[]
+      posts: PostData[]
       ucr_database: string
     }
   } | null
@@ -232,7 +242,7 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
           <CardContent className="text-center py-8">
             <AlertTriangle className="mx-auto h-12 w-12 text-yellow-400 mb-4" />
             <h3 className="text-lg font-semibold mb-2">AI Analysis Unavailable</h3>
-            <p className="text-white/60">The AI analysis couldn't be completed. Check the other tabs for raw data.</p>
+            <p className="text-white/60">The AI analysis could not be completed. Check the other tabs for raw data.</p>
           </CardContent>
         </Card>
       )}
@@ -252,7 +262,7 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
           <CardContent className="text-center py-8">
             <Database className="mx-auto h-12 w-12 text-green-400 mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Database Data</h3>
-            <p className="text-white/60">This course wasn't found in the UCR class difficulty database.</p>
+            <p className="text-white/60">This course was not found in the UCR class difficulty database.</p>
           </CardContent>
         </Card>
       )}
