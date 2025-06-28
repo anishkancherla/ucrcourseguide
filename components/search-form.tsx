@@ -22,15 +22,23 @@ export function SearchForm({ onSearch }: SearchFormProps) {
       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-pink-400/70 via-purple-400/70 to-blue-500/70 shadow-lg">
         <Search className="h-10 w-10 text-white" />
       </div>
-      <h1 className="text-3xl font-bold tracking-tight md:text-4xl">repflaws</h1>
+      <h1 className="text-3xl font-bold tracking-tight md:text-4xl">courselens</h1>
       <p className="max-w-md text-white/80">
-        Enter a product name to get a summary of common flaws found in replicas, along with the most
-        relevant Reddit discussions.
+        Enter a course ID or name to discover student insights and experiences, leveraging community knowledge from r/ucr and the{" "}
+        <a 
+          href="https://docs.google.com/spreadsheets/d/1qiy_Oi8aFiPmL4QSTR3zHe74kmvc6e_159L1mAUUlU0/edit?gid=0#gid=0"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-white transition-colors"
+        >
+          UCR class difficulty database
+        </a>
+        .
       </p>
       <form onSubmit={handleSubmit} className="flex w-full max-w-md items-center space-x-2">
         <Input
           type="text"
-          placeholder="e.g., 'Air Jordan 1 Chicago'"
+          placeholder="e.g., 'CS010A', 'PSYC001', 'HIST010'"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="flex-1 bg-white/20 text-white placeholder:text-white/60 border-white/30 focus:ring-white/50"
