@@ -61,7 +61,7 @@ export default function HomePage() {
 
     try {
       // call our backend for ai course analysis
-      const response = await fetch(`http://localhost:8000/api/course-analysis?keyword=${encodeURIComponent(query)}&max_posts=100&max_comments=100`)
+      const response = await fetch(`https://courselens-production.up.railway.app/api/course-analysis?keyword=${encodeURIComponent(query)}&max_posts=100&max_comments=100`)
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
