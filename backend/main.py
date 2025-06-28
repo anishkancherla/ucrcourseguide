@@ -21,7 +21,7 @@ class PostIdsRequest(BaseModel):
 
 # create fastapi app
 app = FastAPI(
-    title="CourseLens API",
+    title="UCR Course Guide API",
     description="API for leveraging community knowledge about UCR courses from Reddit",
     version="1.0.0"
 )
@@ -38,7 +38,7 @@ app.add_middleware(
 @app.get("/")
 async def root():
     """basic health check"""
-    return {"message": "CourseLens API is running!", "status": "healthy"}
+    return {"message": "UCR Course Guide API is running!", "status": "healthy"}
 
 @app.get("/api/search")
 async def search_course_info(

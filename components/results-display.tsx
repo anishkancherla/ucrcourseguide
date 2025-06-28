@@ -162,10 +162,10 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
 
   const markdownComponents = {
     h4: (props: MarkdownComponentProps) => (
-      <h4 className="text-lg font-semibold text-white mt-4 mb-2" {...props} />
+      <h4 className="text-lg font-diatype-bold text-white mt-4 mb-2" {...props} />
     ),
     h3: (props: MarkdownComponentProps) => (
-      <h3 className="text-xl font-bold text-white mt-4 mb-2" {...props} />
+      <h3 className="text-xl font-diatype-bold text-white mt-4 mb-2" {...props} />
     ),
     ul: (props: MarkdownComponentProps) => (
       <ul className="list-disc list-inside space-y-1.5 pl-2 text-white/80" {...props} />
@@ -175,7 +175,7 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
     ),
     li: (props: MarkdownComponentProps) => <li className="text-white/80" {...props} />,
     p: (props: MarkdownComponentProps) => <p className="text-white/90 mb-3" {...props} />,
-    strong: (props: MarkdownComponentProps) => <strong className="text-white font-semibold" {...props} />,
+    strong: (props: MarkdownComponentProps) => <strong className="text-white font-diatype-bold" {...props} />,
     em: (props: MarkdownComponentProps) => <em className="text-purple-300" {...props} />,
     table: (props: MarkdownComponentProps) => (
       <div className="overflow-x-auto my-4">
@@ -186,7 +186,7 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
     tbody: (props: MarkdownComponentProps) => <tbody className="divide-y divide-white/10" {...props} />,
     tr: (props: MarkdownComponentProps) => <tr className="hover:bg-white/5 transition-colors" {...props} />,
     th: (props: MarkdownComponentProps) => (
-      <th className="px-4 py-3 text-left font-semibold text-white text-sm uppercase tracking-wider" {...props} />
+      <th className="px-4 py-3 text-left font-diatype-bold text-white text-sm uppercase tracking-wider" {...props} />
     ),
     td: (props: MarkdownComponentProps) => <td className="px-4 py-3 text-white/90 text-sm" {...props} />,
   }
@@ -214,7 +214,7 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               disabled={!tab.available}
-              className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              className={`flex items-center px-4 py-2 rounded-md text-sm font-diatype-medium transition-all ${
                 activeTab === tab.id
                   ? "bg-white/20 text-white shadow-lg"
                   : tab.available
@@ -368,7 +368,7 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
         <Card className="bg-white/10 text-white backdrop-blur-2xl border-white/20 shadow-xl ring-1 ring-inset ring-white/10">
           <CardContent className="text-center py-8">
             <AlertTriangle className="mx-auto h-12 w-12 text-yellow-400 mb-4" />
-            <h3 className="text-lg font-semibold mb-2">AI Analysis Unavailable</h3>
+            <h3 className="text-lg font-diatype-bold mb-2">AI Analysis Unavailable</h3>
             <p className="text-white/60">The AI analysis could not be completed. Check the other tabs for raw data.</p>
           </CardContent>
         </Card>
@@ -377,7 +377,7 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
         <Card className="bg-white/10 text-white backdrop-blur-2xl border-white/20 shadow-xl ring-1 ring-inset ring-white/10">
           <CardContent className="text-center py-8">
             <MessageCircle className="mx-auto h-12 w-12 text-blue-400 mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Reddit Data</h3>
+            <h3 className="text-lg font-diatype-bold mb-2">No Reddit Data</h3>
             <p className="text-white/60">No relevant discussions found on r/UCR for this course.</p>
           </CardContent>
         </Card>
@@ -386,7 +386,7 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
         <Card className="bg-white/10 text-white backdrop-blur-2xl border-white/20 shadow-xl ring-1 ring-inset ring-white/10">
           <CardContent className="text-center py-8">
             <Database className="mx-auto h-12 w-12 text-green-400 mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Database Data</h3>
+            <h3 className="text-lg font-diatype-bold mb-2">No Database Data</h3>
             <p className="text-white/60">This course was not found in the UCR class difficulty database.</p>
           </CardContent>
         </Card>

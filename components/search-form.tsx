@@ -22,7 +22,7 @@ export function SearchForm({ onSearch }: SearchFormProps) {
       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-pink-400/70 via-purple-400/70 to-blue-500/70 shadow-lg">
         <Search className="h-10 w-10 text-white" />
       </div>
-      <h1 className="text-3xl font-bold tracking-tight md:text-4xl">courselens</h1>
+      <h1 className="text-3xl font-diatype-bold tracking-tight md:text-4xl">UCR Course Guide</h1>
       <p className="max-w-md text-white/80">
         Enter a course ID or name to discover student insights and experiences, leveraging community knowledge from r/ucr and the{" "}
         <a 
