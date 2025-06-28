@@ -134,8 +134,10 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
   }, [results?.ai_analysis?.ai_summary])
 
   type MarkdownComponentProps = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     node?: any
     children?: React.ReactNode
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any
   }
 
