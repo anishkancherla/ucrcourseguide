@@ -4,6 +4,8 @@ import { useState, type FormEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
+import Image from "next/image"
+import ucrLogo from "@/app/images/ucrlogo.png"
 
 interface SearchFormProps {
   onSearch: (query: string) => void
@@ -19,9 +21,13 @@ export function SearchForm({ onSearch }: SearchFormProps) {
 
   return (
     <div className="flex flex-col items-center justify-center space-y-6 rounded-2xl bg-white/20 backdrop-blur-2xl p-8 text-center text-white shadow-2xl ring-1 ring-inset ring-white/10 md:p-12">
-      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-pink-400/70 via-purple-400/70 to-blue-500/70 shadow-lg">
-        <Search className="h-10 w-10 text-white" />
-      </div>
+      <Image 
+        src={ucrLogo}
+        alt="UCR Logo"
+        width={100}
+        height={100}
+        className="object-contain"
+      />
       <h1 className="text-3xl font-diatype-bold tracking-tight md:text-4xl">UCR Course Guide</h1>
       <p className="max-w-md text-white/80">
         Enter a course ID or name to discover student insights and experiences, leveraging community knowledge from r/ucr and the{" "}
