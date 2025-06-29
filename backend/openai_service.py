@@ -56,7 +56,7 @@ class OpenAIService:
                     }
                 ],
                 temperature=0.3,  # keep it consistent
-                max_tokens=2000   # long summary
+                max_tokens=6000   # much higher for very detailed analysis (up to 4000+ words)
             )
             
             ai_summary = response.choices[0].message.content
@@ -128,37 +128,37 @@ Course ID: {course}
 
 ### Task
 1. Read both data sets.  
-2. **Prioritise newer items** in each set: higher `created_utc` for Reddit, later `date` for database.  
-3. When recency is similar, use up-votes (Reddit) or `individual_difficulty` extremes (database) to decide influence.  
+2. **Prioritise newer items**: higher `created_utc` for Reddit, later `date` for database.  
+3. Break ties with up-votes (Reddit) or `individual_difficulty` extremes (database).  
 4. Ignore off-topic chatter, memes, or duplicates.  
-5. Capture both majority and strong minority views.  
-6. Write output with the exact markdown headings below. If a section has no info, keep the heading and write "No clear info."
+5. **Capture both strengths and weaknesses** that appear repeatedly (≥ 2 similar comments) and any strong minority views.  
+6. ***Compute a 1–5-star rating for each professor***:  
+   • 5 ★ = overwhelmingly positive; 1 ★ = overwhelmingly negative; 3 ★ = mixed.  
+   • Base the rating on the ratio of positive to negative comments.  
+7. Write output with the exact markdown headings below. If a section has no info, keep the heading and write "No clear info."
 
 ### Output format (markdown)
 
 #### Overall Sentiment
 One-sentence vibe (e.g., "Mostly positive but time-consuming").
 
+**Workload & Time Commitment:** Include specific details about hours per week, number of projects/exams, key pain points, and how time-consuming the course is.
+
 #### Difficulty
 – Rank: *Easy / Moderate / Hard / Very Hard*  
 – 2-4 bullet points explaining why.
 
-#### Workload & Time Commitment
-Bullets on hours per week, number of projects/exams, key pain points.
+#### Professors & What Students Say
+| Professor | ★ Rating | Representative reviews<sup>†</sup> |
+|-----------|---------|-------------------------------------|
+| Name      | ★★★★☆   | 1. 📊 2024-11-15 – "Engaging lectures but tough quizzes."<br>2. 👽 2025-03-02 – "Clear grader, slides online." |
 
-#### Popular Professors & What Students Say
-| Professor | Reputation | Key quotes |
-|-----------|------------|------------|
-| Name      | e.g. "fun but tough grader" | "Exact student quote" |
-
-#### Key Concepts / Topics Covered
-Comma-separated list of most mentioned topics.
+<sup>†</sup> Prefix each quote with **📊** if it came from the database or **👽** if from Reddit, and include the review date (YYYY-MM-DD).
 
 #### Advice & Tips for Success
-Numbered list of practical tips.
+**COURSE-SPECIFIC ONLY:** List practical tips that are unique to this exact course/professors. Avoid generic advice like "study early," "stay organized," "attend lectures" - only include tips that are specific to this course's format, professors, exams, or unique requirements.
 
-#### Recommended Resources
-Books, websites, videos, tutoring, etc.
+**Recommended Resources:** Include books, websites, videos, tutoring, and other helpful resources within this section.
 
 #### Common Pitfalls
 Top 3 mistakes students warn about.
@@ -166,27 +166,19 @@ Top 3 mistakes students warn about.
 #### Grade Distribution Perception
 If discussed, summarise; else "No clear info."
 
-#### Notable Minority Opinions
-One-sentence summaries of strong outlier takes.
-
----
-
-### UCR Database Review Summary
-Provide a **separate** digest of the Google Sheets reviews:  
-* Overall average difficulty (0-10).  
-* Difficulty range.  
-* Include bullet trends (e.g., "Group paper is 50 % of grade").  
-* Professor highlights if mentioned.  
-* Any clear advice or warnings.
-
 ### Style rules
 - Plain English.  
 - Bullets ≤ 20 words.  
+- **Include positive and negative viewpoints.**  
+- Each professor needs **at least two quotes** (one positive, one negative if available).  
+- Quotes must show the review date and the correct icon (📊 or 👽).  
+- Use Unicode stars (★) for ratings.  
 - No invented facts; if unsure, write "Not mentioned."  
 - Do **not** mention Reddit, up-votes, JSON, or yourself.  
-- **Maximum 800 words** total.
-
-Return only the markdown above.
+- **Maximum 4000 words** total.
+- **IMPORTANT: Each section should be VERY detailed and comprehensive. Aim for 200-400 words per section.**
+- **NO main title or heading at the top - start directly with the first section.**
+- **MINORITY OPINIONS: If you find genuine minority opinions, integrate them into the appropriate sections using this format: "*Minority opinion: [opinion text]*" - only include when there are actual minority views, don't force them.**
 
 ### REDDIT DATA:
 {formatted_reddit_data if formatted_reddit_data.strip() else "No Reddit discussions found for this course."}

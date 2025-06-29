@@ -69,23 +69,22 @@ const parseMarkdownSections = (markdownText: string | undefined) => {
     return []
   }
   return markdownText
-    .split(/\n(?=#{2,4}\s)/)
+    .split(/\n(?=#{1,4}\s)/)
     .map((section) => {
       const trimmed = section.trim()
       if (!trimmed) return null
       const lines = trimmed.split("\n")
-      const title = (lines.shift() || "").replace(/^#{2,4}\s/, "").trim()
+      const title = (lines.shift() || "").replace(/^#{1,4}\s/, "").trim()
       let content = lines
         .join("\n")
         .trim()
         .replace(/^\s*–\s/gm, "* ") 
 
-      if (title === "UCR Database Review Summary") {
-        content = content.replace(
-          "This summary should help you gauge the course's expectations and how to succeed.",
-          "",
-        )
+      // Skip main title sections that are empty or just course names/cheat-sheet titles
+      if (content.length < 10 || title.toLowerCase().includes('cheat-sheet') || title.toLowerCase().includes('course insights')) {
+        return null
       }
+
       return { title, content }
     })
     .filter((s): s is { title: string; content: string } => !!s && !!s.title && !!s.content)
@@ -94,15 +93,10 @@ const parseMarkdownSections = (markdownText: string | undefined) => {
 const sectionIcons: { [key: string]: FC<React.ComponentProps<"svg">> } = {
   "Overall Sentiment": Star,
   Difficulty: BarChart2,
-  "Workload & Time Commitment": Clock,
-  "Popular Professors & What Students Say": Users,
-  "Key Concepts / Topics Covered": GraduationCap,
+  "Professors & What Students Say": Users,
   "Advice & Tips for Success": Lightbulb,
-  "Recommended Resources": Book,
   "Common Pitfalls": AlertTriangle,
   "Grade Distribution Perception": FileText,
-  "Notable Minority Opinions": MessageCircle,
-  "UCR Database Review Summary": Database,
 }
 
 export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
@@ -137,13 +131,6 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
   const parsedSections = useMemo(() => {
     if (results?.ai_analysis?.ai_summary) {
       const sections = parseMarkdownSections(results.ai_analysis.ai_summary)
-      const dbSummaryIndex = sections.findIndex((s) => s.title === "UCR Database Review Summary")
-      const difficultyIndex = sections.findIndex((s) => s.title === "Difficulty")
-
-      if (dbSummaryIndex > -1 && difficultyIndex > -1) {
-        const [dbSummary] = sections.splice(dbSummaryIndex, 1)
-        sections.splice(difficultyIndex + 1, 0, dbSummary)
-      }
 
       const minorityOpinionsIndex = sections.findIndex((s) => s.title === "Notable Minority Opinions")
       if (minorityOpinionsIndex > -1) {
@@ -178,16 +165,30 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
       <ol className="list-decimal list-inside space-y-1.5 pl-2 text-white/80" {...props} />
     ),
     li: (props: MarkdownComponentProps) => <li className="text-white/80" {...props} />,
-    p: (props: MarkdownComponentProps) => <p className="text-white/90 mb-3" {...props} />,
+    p: (props: MarkdownComponentProps) => {
+      const content = props.children?.toString() || ''
+      if (content.startsWith('*Minority opinion:')) {
+        return (
+          <p className="text-white/60 text-sm mb-3 italic" {...props} />
+        )
+      }
+      return <p className="text-white/90 mb-3" {...props} />
+    },
     strong: (props: MarkdownComponentProps) => <strong className="text-white font-diatype-bold" {...props} />,
-    em: (props: MarkdownComponentProps) => <em className="text-purple-300" {...props} />,
+    em: (props: MarkdownComponentProps) => {
+      const content = props.children?.toString() || ''
+      if (content.startsWith('Minority opinion:')) {
+        return <em className="text-white/60 text-sm" {...props} />
+      }
+      return <em className="text-purple-300" {...props} />
+    },
     table: (props: MarkdownComponentProps) => (
       <div className="overflow-x-auto my-4">
         <table className="w-full border-collapse bg-white/5 rounded-lg overflow-hidden shadow-lg" {...props} />
       </div>
     ),
     thead: (props: MarkdownComponentProps) => <thead className="bg-white/10" {...props} />,
-    tbody: (props: MarkdownComponentProps) => <tbody className="divide-y divide-white/10" {...props} />,
+    tbody: (props: MarkdownComponentProps) => <tbody {...props} />,
     tr: (props: MarkdownComponentProps) => <tr className="hover:bg-white/5 transition-colors" {...props} />,
     th: (props: MarkdownComponentProps) => (
       <th className="px-4 py-3 text-left font-diatype-bold text-white text-sm uppercase tracking-wider" {...props} />
@@ -284,18 +285,19 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
           {expandedSection && (
             <div className="fixed inset-0 z-50 pointer-events-none">
               <Card 
-                className="absolute bg-white/20 text-white backdrop-blur-2xl border-white/20 shadow-2xl ring-1 ring-inset ring-white/10 transition-all duration-500 ease-out pointer-events-auto"
+                className="absolute bg-white/20 text-white backdrop-blur-2xl border-white/20 shadow-2xl ring-1 ring-inset ring-white/10 transition-all duration-500 ease-in-out pointer-events-auto"
                 style={{
                   left: isAnimating && cardRect ? `${cardRect.left}px` : '16px',
                   top: isAnimating && cardRect ? `${cardRect.top}px` : '16px',
                   width: isAnimating && cardRect ? `${cardRect.width}px` : 'calc(100vw - 32px)',
                   height: isAnimating && cardRect ? `${cardRect.height}px` : 'calc(100vh - 32px)',
-                  transform: isAnimating ? 'scale(1)' : 'scale(1)',
+                  opacity: isAnimating ? 1 : 1,
+                  transform: `scale(${isAnimating ? 1 : 1})`,
                 }}
               >
                 {!isAnimating && (
                   <>
-                    <CardHeader className="border-b border-white/20 flex-shrink-0">
+                    <CardHeader className="flex-shrink-0">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
                           {(() => {
@@ -325,7 +327,7 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
                   </>
                 )}
                 {isAnimating && (
-                  <CardHeader className="pb-4">
+                  <CardHeader className="pb-4 transition-opacity duration-300" style={{ opacity: isAnimating ? 0.8 : 1 }}>
                     <CardTitle className="text-lg flex items-center justify-between">
                       <div className="flex items-center">
                         {(() => {
@@ -344,15 +346,19 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
           )}
 
           {/* Section Cards Overview */}
-          <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 transition-opacity duration-300 ${expandedSection ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+          <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 transition-opacity duration-500 ${expandedSection && !isAnimating ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
             {parsedSections.map((section, index) => {
               const Icon = sectionIcons[section.title] || List
               return (
                 <Card
                   key={index}
                   className={`bg-white/20 text-white backdrop-blur-2xl border-white/20 shadow-2xl ring-1 ring-inset ring-white/10 cursor-pointer hover:bg-white/25 transition-all duration-200 hover:scale-105 group ${
-                    expandedSection === section.title ? 'invisible' : 'visible'
+                    expandedSection === section.title && !isAnimating ? 'invisible' : 'visible'
                   }`}
+                  style={{
+                    opacity: expandedSection === section.title && isAnimating ? 1.2 : 1,
+                    transition: expandedSection === section.title ? 'opacity 400ms ease-in-out 200ms' : 'none'
+                  }}
                   onClick={(e) => handleSectionClick(section.title, e)}
                 >
                   <CardHeader className="pb-4">
