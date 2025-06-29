@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { SearchForm } from "@/components/search-form"
 import { ResultsDisplay } from "@/components/results-display"
+import { StructuredResultsDisplay } from "@/components/structured-results-display"
 import { Button } from "@/components/ui/button"
 import { Share2 } from "lucide-react"
 import { GradientBackground } from "@/components/gradient-background"
@@ -22,7 +23,12 @@ interface PostData {
     subreddit: string
     score: number
     num_comments: number
+    selftext?: string
   }
+  comments: Array<{
+    body: string
+    score: number
+  }>
 }
 
 interface SearchResults {
@@ -48,6 +54,48 @@ interface SearchResults {
       ucr_database_included?: boolean
     }
   }
+  structured_data?: {
+    overall_sentiment?: {
+      summary: string
+      workload?: {
+        hours_per_week: string
+        assignments: string
+        time_commitment: string
+      }
+      minority_opinions?: string[]
+    }
+    difficulty?: {
+      rank: string
+      rating: number
+      max_rating: number
+      explanation: string[]
+      minority_opinions?: string[]
+    }
+    professors?: Array<{
+      name: string
+      rating: number
+      max_rating: number
+      reviews: Array<{
+        source: string
+        date: string
+        text: string
+      }>
+      minority_opinions?: string[]
+    }>
+    advice?: {
+      course_specific_tips: string[]
+      resources: string[]
+      minority_opinions?: string[]
+    }
+    common_pitfalls?: string[]
+    grade_distribution?: string
+  }
+  analysis_metadata?: {
+    total_posts_analyzed: number
+    total_comments_analyzed: number
+    model_used: string
+    ucr_database_included?: boolean
+  }
 }
 
 export default function HomePage() {
@@ -60,11 +108,11 @@ export default function HomePage() {
     setResults(null)
 
     try {
-      // call our backend for ai course analysis
+      // call our backend for structured ai course analysis
       const apiBaseUrl = process.env.NODE_ENV === 'production' 
         ? 'https://courselens-production.up.railway.app' 
         : 'http://localhost:8000'
-      const response = await fetch(`${apiBaseUrl}/api/course-analysis?keyword=${encodeURIComponent(query)}&max_posts=100&max_comments=100`)
+      const response = await fetch(`${apiBaseUrl}/api/course-analysis-structured?keyword=${encodeURIComponent(query)}&max_posts=100&max_comments=100`)
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -72,7 +120,7 @@ export default function HomePage() {
       
       const data = await response.json()
       
-      if (data.success && data.ai_analysis) {
+      if (data.success && data.analysis && data.analysis.structured_data) {
         // get reddit links from raw data if ai worked
         const links: RedditLink[] = []
         
@@ -91,17 +139,16 @@ export default function HomePage() {
           })
         }
 
-        // use ai summary as main content
-        const aiSummary = data.ai_analysis.ai_summary || 'AI analysis completed successfully.'
-        
+        // use structured data
         setResults({
-          summary: aiSummary,
+          summary: data.analysis.structured_data.overall_sentiment?.summary || 'Analysis completed successfully.',
           links: links.slice(0, 8), // show top reddit posts
           totalPosts: data.posts_analyzed,
           keyword: query,
           ucr_database_included: data.ucr_database_included,
           raw_data: data.raw_data,
-          ai_analysis: data.ai_analysis
+          structured_data: data.analysis.structured_data, // NEW: structured data
+          analysis_metadata: data.analysis.analysis_metadata
         })
       } else if (data.success && data.raw_data) {
         // fallback: if ai failed but we have raw data
@@ -166,7 +213,12 @@ export default function HomePage() {
                 <p className="mt-2 text-sm text-white/60">this may take 30-60 seconds</p>
               </div>
             )}
-            {results && <ResultsDisplay results={results} onReset={() => setResults(null)} />}
+            {results && results.structured_data && (
+              <StructuredResultsDisplay results={results} onReset={() => setResults(null)} />
+            )}
+            {results && !results.structured_data && (
+              <ResultsDisplay results={results} onReset={() => setResults(null)} />
+            )}
           </div>
         </main>
       </div>

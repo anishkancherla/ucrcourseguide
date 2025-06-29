@@ -161,6 +161,102 @@ async def get_multiple_posts_for_ai(
         logger.error(f"Error getting multiple posts for AI: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get multiple posts: {str(e)}")
 
+@app.get("/api/course-analysis-structured")
+async def get_structured_course_analysis(
+    keyword: str = Query(..., description="Course ID or name to analyze"),
+    max_posts: int = Query(default=20, ge=1, le=100, description="Maximum posts to analyze"),
+    max_comments_per_post: int = Query(default=30, ge=1, le=100, description="Max comments per post")
+):
+    """
+    🎯 NEW: Returns structured JSON data instead of markdown for custom frontend components
+    """
+    try:
+        logger.info(f"Structured course analysis for: {keyword}")
+        
+        if not keyword.strip():
+            raise HTTPException(status_code=400, detail="Course keyword cannot be empty")
+        
+        # Same data gathering as regular endpoint
+        search_results = reddit_service.search_course_info(keyword.strip(), max_posts)
+        
+        if not search_results or search_results["total_posts"] == 0:
+            ucr_data = sheets_service.format_for_ai_analysis(keyword.strip())
+            
+            if not ucr_data or ucr_data.strip() == "":
+                return {
+                    "success": False,
+                    "error": "No data found",
+                    "message": f"No Reddit posts or UCR database entries found for '{keyword}'"
+                }
+            
+            course_data = {
+                "course": keyword.strip(),
+                "posts": [],
+                "ucr_database": ucr_data
+            }
+            
+            # Use structured analysis method
+            analysis = openai_service.analyze_course_discussions_structured(course_data)
+            
+            return {
+                "success": True,
+                "posts_analyzed": 0,
+                "ucr_database_included": True,
+                "raw_data": {
+                    "course": keyword.strip(),
+                    "posts": [],
+                    "ucr_database": ucr_data
+                },
+                "analysis": analysis
+            }
+        
+        # Get full content from reddit posts
+        ucr_posts = search_results["subreddits"].get("ucr", {}).get("posts", [])
+        
+        if not ucr_posts:
+            return {
+                "success": False,
+                "error": "No UCR posts found",
+                "message": f"No posts found in r/ucr for '{keyword}'"
+            }
+        
+        post_ids = [post["id"] for post in ucr_posts[:max_posts]]
+        full_content_data = reddit_service.get_multiple_posts_for_ai(post_ids, max_comments_per_post)
+        
+        if not full_content_data["success"]:
+            return {
+                "success": False,
+                "error": "Failed to get full Reddit content"
+            }
+        
+        posts_data = full_content_data["data"]
+        ucr_database_data = sheets_service.format_for_ai_analysis(keyword.strip())
+        
+        course_data = {
+            "course": keyword.strip(),
+            "posts": posts_data,
+            "ucr_database": ucr_database_data if ucr_database_data else ""
+        }
+        
+        # Use structured analysis method
+        analysis = openai_service.analyze_course_discussions_structured(course_data)
+        
+        return {
+            "success": True,
+            "posts_analyzed": len(posts_data),
+            "ucr_database_included": bool(ucr_database_data),
+            "raw_data": {
+                "course": keyword.strip(),
+                "posts": posts_data,
+                "ucr_database": ucr_database_data if ucr_database_data else ""
+            },
+            "analysis": analysis
+        }
+        
+    except Exception as e:
+        logger.error(f"Structured course analysis failed for {keyword}: {e}")
+        raise HTTPException(status_code=500, detail=f"Course analysis failed: {str(e)}")
+
 @app.get("/api/course-analysis")
 async def get_complete_course_analysis(
     keyword: str = Query(..., description="Course ID or name to analyze"),

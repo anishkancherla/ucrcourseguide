@@ -18,6 +18,74 @@ class OpenAIService:
             logger.error(f"Failed to initialize OpenAI client: {e}")
             raise
     
+    def analyze_course_discussions_structured(self, course_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        analyze ucr course discussions and return structured data for frontend
+        """
+        try:
+            course = course_data.get("course", "Unknown Course")
+            posts = course_data.get("posts", [])
+            ucr_database = course_data.get("ucr_database", "")
+            
+            if not posts and not ucr_database:
+                return {
+                    "success": False,
+                    "error": "No data to analyze"
+                }
+            
+            logger.info(f"Analyzing {len(posts)} Reddit posts + UCR database for course: {course}")
+            
+            # format reddit data for ai
+            formatted_reddit_data = self._format_posts_for_ai(posts) if posts else ""
+            
+            # create structured data prompt
+            prompt = self._create_structured_analysis_prompt(course, formatted_reddit_data, ucr_database)
+            
+            # call openai api
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": "You are an expert UCR academic advisor who analyzes student discussions to provide structured course data."
+                    },
+                    {
+                        "role": "user", 
+                        "content": prompt
+                    }
+                ],
+                temperature=0.3,
+                max_tokens=6000
+            )
+            
+            # parse JSON response
+            try:
+                structured_data = json.loads(response.choices[0].message.content)
+            except json.JSONDecodeError:
+                # fallback to old method if JSON parsing fails
+                return self.analyze_course_discussions(course_data)
+            
+            return {
+                "success": True,
+                "course": course,
+                "structured_data": structured_data,
+                "analysis_metadata": {
+                    "total_posts_analyzed": len(posts),
+                    "total_comments_analyzed": sum(len(post_data.get("comments", [])) for post_data in posts),
+                    "ucr_database_included": bool(ucr_database),
+                    "model_used": self.model,
+                    "analysis_type": "structured_course_data"
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Structured analysis failed for course {course}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "course": course
+            }
+
     def analyze_course_discussions(self, course_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         analyze ucr course discussions using gpt
@@ -112,6 +180,69 @@ class OpenAIService:
         
         return "".join(formatted_posts)
     
+    def _create_structured_analysis_prompt(self, course: str, formatted_reddit_data: str, ucr_database_data: str = "") -> str:
+        """create prompt for structured JSON data output"""
+        return f"""You are an assistant that analyzes UCR course data and returns structured JSON.
+
+### Context
+Course ID: {course}
+Reddit data: {formatted_reddit_data[:1000] if formatted_reddit_data.strip() else "No Reddit data"}...
+UCR Database: {ucr_database_data[:1000] if ucr_database_data.strip() else "No database data"}...
+
+### Task
+IMPORTANT INSTRUCTIONS:
+- PRIORITIZE RECENT CONTENT: When analyzing Reddit posts and database reviews, give much higher weight to recent posts/reviews (higher created_utc for Reddit, later dates for database)
+- SORT PROFESSORS BY RATING: Order professors array from highest to lowest star rating
+- Be comprehensive and detailed in your analysis
+
+Analyze the data and return ONLY valid JSON in this exact format:
+
+{{
+    "overall_sentiment": {{
+        "summary": "One sentence overall vibe",
+        "workload": {{
+            "hours_per_week": "2-4 hours",
+            "assignments": "Weekly quizzes, 2 midterms, final",
+            "time_commitment": "Low to moderate"
+        }},
+        "minority_opinions": ["Any contrarian views about course overall"]
+    }},
+    "difficulty": {{
+        "rank": "Easy",
+        "rating": 2.5,
+        "max_rating": 10,
+        "explanation": ["Reason 1", "Reason 2", "Reason 3"],
+        "minority_opinions": ["Any contrarian difficulty opinions"]
+    }},
+    "professors": [
+        {{
+            "name": "Professor Name",
+            "rating": 4.2,
+            "max_rating": 5,
+            "reviews": [
+                {{"source": "database", "date": "2024-01-15", "text": "Review text"}},
+                {{"source": "reddit", "date": "2024-02-20", "text": "Review text"}}
+            ],
+            "minority_opinions": ["Any negative opinions about this prof"]
+        }}
+    ],
+    "advice": {{
+        "course_specific_tips": ["Tip 1", "Tip 2", "Tip 3"],
+        "resources": ["Resource 1", "Resource 2"],
+        "minority_opinions": ["Alternative study strategies"]
+    }},
+    "common_pitfalls": ["Pitfall 1", "Pitfall 2", "Pitfall 3"],
+    "grade_distribution": "Description or 'No clear info'"
+}}
+
+Return ONLY the JSON object, no other text.
+
+### REDDIT DATA:
+{formatted_reddit_data if formatted_reddit_data.strip() else "No Reddit discussions found."}
+
+### UCR DATABASE DATA:
+{ucr_database_data if ucr_database_data.strip() else "No UCR database entries found."}"""
+
     def _create_analysis_prompt(self, course: str, formatted_reddit_data: str, ucr_database_data: str = "") -> str:
         """create the prompt for openai"""
         return f"""You are an assistant that turns crowd-sourced information about a UCR course into a clear, student-friendly cheat-sheet.
