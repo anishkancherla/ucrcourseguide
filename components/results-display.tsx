@@ -108,6 +108,8 @@ const sectionIcons: { [key: string]: FC<React.ComponentProps<"svg">> } = {
 export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
   const [activeTab, setActiveTab] = useState<"analysis" | "reddit" | "database">("analysis")
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
+  const [isAnimating, setIsAnimating] = useState(false)
+  const [cardRect, setCardRect] = useState<DOMRect | null>(null)
 
   const hasAIAnalysis = results?.ai_analysis?.success && results?.ai_analysis?.ai_summary
   const hasRedditData = results?.links && results?.links.length > 0
@@ -193,12 +195,27 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
     td: (props: MarkdownComponentProps) => <td className="px-4 py-3 text-white/90 text-sm" {...props} />,
   }
 
-  const handleSectionClick = (sectionTitle: string) => {
+  const handleSectionClick = (sectionTitle: string, event: React.MouseEvent) => {
+    const cardElement = event.currentTarget as HTMLElement
+    const rect = cardElement.getBoundingClientRect()
+    setCardRect(rect)
     setExpandedSection(sectionTitle)
+    setIsAnimating(true)
+    
+    // Start animation on next frame for immediate response
+    requestAnimationFrame(() => {
+      setIsAnimating(false)
+    })
   }
 
   const handleBackToOverview = () => {
-    setExpandedSection(null)
+    setIsAnimating(true)
+    // Allow the contraction animation to complete before removing the expanded section
+    setTimeout(() => {
+      setExpandedSection(null)
+      setCardRect(null)
+      setIsAnimating(false)
+    }, 500) // Match the CSS transition duration
   }
 
   if (!results) return null
@@ -263,66 +280,93 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
             </CardHeader>
           </Card>
 
-          {/* Main container with smooth transition */}
-          <div className={`transition-all duration-500 ${expandedSection ? 'fixed inset-4 z-50' : 'relative'}`}>
-            {/* Expanded Section View */}
-            {expandedSection && (
-              <Card className="h-full bg-white/20 text-white backdrop-blur-2xl border-white/20 shadow-2xl ring-1 ring-inset ring-white/10 flex flex-col">
-                <CardHeader className="border-b border-white/20 flex-shrink-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      {(() => {
-                        const section = parsedSections.find(s => s.title === expandedSection)
-                        const Icon = section ? sectionIcons[section.title] || List : List
-                        return <Icon className="mr-3 h-6 w-6 text-purple-300" />
-                      })()}
-                      <CardTitle className="text-2xl font-diatype-bold">{expandedSection}</CardTitle>
-                    </div>
-                    <Button
-                      onClick={handleBackToOverview}
-                      variant="ghost"
-                      className="text-white/80 hover:text-white"
-                    >
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Back to Overview
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex-1 overflow-y-auto p-6">
-                  <div className="prose prose-invert max-w-none text-white/90 leading-relaxed">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                      {parsedSections.find(s => s.title === expandedSection)?.content || ''}
-                    </ReactMarkdown>
-                  </div>
-                </CardContent>
+          {/* Animated expanding card */}
+          {expandedSection && (
+            <div className="fixed inset-0 z-50 pointer-events-none">
+              <Card 
+                className="absolute bg-white/20 text-white backdrop-blur-2xl border-white/20 shadow-2xl ring-1 ring-inset ring-white/10 transition-all duration-500 ease-out pointer-events-auto"
+                style={{
+                  left: isAnimating && cardRect ? `${cardRect.left}px` : '16px',
+                  top: isAnimating && cardRect ? `${cardRect.top}px` : '16px',
+                  width: isAnimating && cardRect ? `${cardRect.width}px` : 'calc(100vw - 32px)',
+                  height: isAnimating && cardRect ? `${cardRect.height}px` : 'calc(100vh - 32px)',
+                  transform: isAnimating ? 'scale(1)' : 'scale(1)',
+                }}
+              >
+                {!isAnimating && (
+                  <>
+                    <CardHeader className="border-b border-white/20 flex-shrink-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          {(() => {
+                            const section = parsedSections.find(s => s.title === expandedSection)
+                            const Icon = section ? sectionIcons[section.title] || List : List
+                            return <Icon className="mr-3 h-6 w-6 text-purple-300" />
+                          })()}
+                          <CardTitle className="text-2xl font-diatype-bold">{expandedSection}</CardTitle>
+                        </div>
+                        <Button
+                          onClick={handleBackToOverview}
+                          variant="ghost"
+                          className="text-white/80 hover:text-white"
+                        >
+                          <ArrowLeft className="mr-2 h-4 w-4" />
+                          Back to Overview
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="flex-1 overflow-y-auto p-6 h-full">
+                      <div className="prose prose-invert max-w-none text-white/90 leading-relaxed">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                          {parsedSections.find(s => s.title === expandedSection)?.content || ''}
+                        </ReactMarkdown>
+                      </div>
+                    </CardContent>
+                  </>
+                )}
+                {isAnimating && (
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg flex items-center justify-between">
+                      <div className="flex items-center">
+                        {(() => {
+                          const section = parsedSections.find(s => s.title === expandedSection)
+                          const Icon = section ? sectionIcons[section.title] || List : List
+                          return <Icon className="mr-3 h-5 w-5 text-purple-300 shrink-0" />
+                        })()}
+                        <span>{expandedSection}</span>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-white/60 opacity-0" />
+                    </CardTitle>
+                  </CardHeader>
+                )}
               </Card>
-            )}
+            </div>
+          )}
 
-            {/* Section Cards Overview */}
-            {!expandedSection && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {parsedSections.map((section, index) => {
-                  const Icon = sectionIcons[section.title] || List
-                  return (
-                    <Card
-                      key={index}
-                      className="bg-white/20 text-white backdrop-blur-2xl border-white/20 shadow-2xl ring-1 ring-inset ring-white/10 cursor-pointer hover:bg-white/25 transition-all duration-200 hover:scale-105 group"
-                      onClick={() => handleSectionClick(section.title)}
-                    >
-                      <CardHeader className="pb-4">
-                        <CardTitle className="text-lg flex items-center justify-between">
-                          <div className="flex items-center">
-                            <Icon className="mr-3 h-5 w-5 text-purple-300 shrink-0" />
-                            <span>{section.title}</span>
-                          </div>
-                          <ChevronRight className="h-5 w-5 text-white/60 group-hover:text-white transition-colors" />
-                        </CardTitle>
-                      </CardHeader>
-                    </Card>
-                  )
-                })}
-              </div>
-            )}
+          {/* Section Cards Overview */}
+          <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 transition-opacity duration-300 ${expandedSection ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+            {parsedSections.map((section, index) => {
+              const Icon = sectionIcons[section.title] || List
+              return (
+                <Card
+                  key={index}
+                  className={`bg-white/20 text-white backdrop-blur-2xl border-white/20 shadow-2xl ring-1 ring-inset ring-white/10 cursor-pointer hover:bg-white/25 transition-all duration-200 hover:scale-105 group ${
+                    expandedSection === section.title ? 'invisible' : 'visible'
+                  }`}
+                  onClick={(e) => handleSectionClick(section.title, e)}
+                >
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Icon className="mr-3 h-5 w-5 text-purple-300 shrink-0" />
+                        <span>{section.title}</span>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-white/60 group-hover:text-white transition-colors" />
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+              )
+            })}
           </div>
         </div>
       )}
