@@ -26,11 +26,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# add cors
+# add cors - allow all origins for production deployment flexibility
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[config.FRONTEND_URL, "http://localhost:3000"],
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins for production
+    allow_credentials=False,  # Set to False when using allow_origins=["*"]
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -337,6 +337,82 @@ async def test_reddit_connection():
     except Exception as e:
         logger.error(f"Reddit test failed: {e}")
         raise HTTPException(status_code=500, detail=f"Reddit test failed: {str(e)}")
+
+@app.get("/api/debug/{course}")
+async def debug_course_endpoint(course: str):
+    """
+    🔧 Debug endpoint to diagnose exactly what's failing
+    """
+    debug_info = {
+        "course": course,
+        "environment_check": {},
+        "reddit_check": {},
+        "sheets_check": {},
+        "openai_check": {}
+    }
+    
+    # Check environment variables
+    debug_info["environment_check"] = {
+        "reddit_client_id": "✅ Set" if config.REDDIT_CLIENT_ID else "❌ Missing",
+        "reddit_client_secret": "✅ Set" if config.REDDIT_CLIENT_SECRET else "❌ Missing", 
+        "openai_api_key": "✅ Set" if config.OPENAI_API_KEY else "❌ Missing",
+        "openai_model": config.OPENAI_MODEL
+    }
+    
+    # Test Reddit connection
+    try:
+        test_search = reddit_service.search_course_info(course, 2)
+        debug_info["reddit_check"] = {
+            "status": "✅ Success",
+            "total_posts": test_search.get("total_posts", 0),
+            "subreddits": list(test_search.get("subreddits", {}).keys()),
+            "sample_data": test_search
+        }
+    except Exception as e:
+        debug_info["reddit_check"] = {
+            "status": "❌ Failed",
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+    
+    # Test Google Sheets connection
+    try:
+        sheets_data = sheets_service.format_for_ai_analysis(course)
+        available_classes = sheets_service.get_available_classes()
+        debug_info["sheets_check"] = {
+            "status": "✅ Success" if sheets_data else "⚠️ No data",
+            "data_length": len(sheets_data) if sheets_data else 0,
+            "available_classes_count": len(available_classes),
+            "course_found": course.upper() in available_classes,
+            "sample_classes": available_classes[:10] if available_classes else []
+        }
+    except Exception as e:
+        debug_info["sheets_check"] = {
+            "status": "❌ Failed", 
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+    
+    # Test OpenAI connection
+    try:
+        test_response = openai_service.client.chat.completions.create(
+            model=config.OPENAI_MODEL,
+            messages=[{"role": "user", "content": "Hello, reply with just 'OK'"}],
+            max_tokens=5
+        )
+        debug_info["openai_check"] = {
+            "status": "✅ Success",
+            "model": config.OPENAI_MODEL,
+            "response": test_response.choices[0].message.content
+        }
+    except Exception as e:
+        debug_info["openai_check"] = {
+            "status": "❌ Failed",
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+    
+    return debug_info
 
 if __name__ == "__main__":
     import uvicorn
