@@ -20,6 +20,7 @@ import {
   Star,
   FileText,
   GraduationCap,
+  ChevronRight,
 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -106,6 +107,7 @@ const sectionIcons: { [key: string]: FC<React.ComponentProps<"svg">> } = {
 
 export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
   const [activeTab, setActiveTab] = useState<"analysis" | "reddit" | "database">("analysis")
+  const [expandedSection, setExpandedSection] = useState<string | null>(null)
 
   const hasAIAnalysis = results?.ai_analysis?.success && results?.ai_analysis?.ai_summary
   const hasRedditData = results?.links && results?.links.length > 0
@@ -191,6 +193,14 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
     td: (props: MarkdownComponentProps) => <td className="px-4 py-3 text-white/90 text-sm" {...props} />,
   }
 
+  const handleSectionClick = (sectionTitle: string) => {
+    setExpandedSection(sectionTitle)
+  }
+
+  const handleBackToOverview = () => {
+    setExpandedSection(null)
+  }
+
   if (!results) return null
 
   const numColumns = 3
@@ -253,45 +263,66 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
             </CardHeader>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
-            {columns.map((column, colIndex) => (
-              <div key={colIndex} className="space-y-6">
-                {column.map((section, sectionIndex) => {
-                  const Icon = sectionIcons[section.title] || List
-                  const wideSections = [
-                    "Popular Professors & What Students Say",
-                    "UCR Database Review Summary",
-                    "Recommended Resources",
-                    "Common Pitfalls",
-                  ]
-                  let colSpan = "lg:col-span-1"
-                  if (section.title === "Advice & Tips for Success") {
-                    colSpan = "lg:col-span-3 md:col-span-2"
-                  } else if (wideSections.includes(section.title)) {
-                    colSpan = "lg:col-span-2 md:col-span-2"
-                  }
+          {/* Main container with smooth transition */}
+          <div className={`transition-all duration-500 ${expandedSection ? 'fixed inset-4 z-50' : 'relative'}`}>
+            {/* Expanded Section View */}
+            {expandedSection && (
+              <Card className="h-full bg-white/20 text-white backdrop-blur-2xl border-white/20 shadow-2xl ring-1 ring-inset ring-white/10 flex flex-col">
+                <CardHeader className="border-b border-white/20 flex-shrink-0">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      {(() => {
+                        const section = parsedSections.find(s => s.title === expandedSection)
+                        const Icon = section ? sectionIcons[section.title] || List : List
+                        return <Icon className="mr-3 h-6 w-6 text-purple-300" />
+                      })()}
+                      <CardTitle className="text-2xl font-diatype-bold">{expandedSection}</CardTitle>
+                    </div>
+                    <Button
+                      onClick={handleBackToOverview}
+                      variant="ghost"
+                      className="text-white/80 hover:text-white"
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Back to Overview
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-y-auto p-6">
+                  <div className="prose prose-invert max-w-none text-white/90 leading-relaxed">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                      {parsedSections.find(s => s.title === expandedSection)?.content || ''}
+                    </ReactMarkdown>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
+            {/* Section Cards Overview */}
+            {!expandedSection && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {parsedSections.map((section, index) => {
+                  const Icon = sectionIcons[section.title] || List
                   return (
                     <Card
-                      key={sectionIndex}
-                      className={`bg-white/20 text-white backdrop-blur-2xl border-white/20 shadow-2xl ring-1 ring-inset ring-white/10 flex flex-col break-inside-avoid ${colSpan}`}
+                      key={index}
+                      className="bg-white/20 text-white backdrop-blur-2xl border-white/20 shadow-2xl ring-1 ring-inset ring-white/10 cursor-pointer hover:bg-white/25 transition-all duration-200 hover:scale-105 group"
+                      onClick={() => handleSectionClick(section.title)}
                     >
-                      <CardHeader>
-                        <CardTitle className="text-lg flex items-center">
-                          <Icon className="mr-2 h-5 w-5 text-purple-300 shrink-0" />
-                          <span>{section.title}</span>
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-lg flex items-center justify-between">
+                          <div className="flex items-center">
+                            <Icon className="mr-3 h-5 w-5 text-purple-300 shrink-0" />
+                            <span>{section.title}</span>
+                          </div>
+                          <ChevronRight className="h-5 w-5 text-white/60 group-hover:text-white transition-colors" />
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="prose prose-invert max-w-none text-white/90 leading-relaxed flex-grow">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                          {section.content}
-                        </ReactMarkdown>
-                      </CardContent>
                     </Card>
                   )
                 })}
               </div>
-            ))}
+            )}
           </div>
         </div>
       )}
