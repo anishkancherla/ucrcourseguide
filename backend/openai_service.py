@@ -220,7 +220,10 @@ For each professor, you MUST:
 For the "difficulty" explanation array:
 - **ONLY include actual student quotes and reasoning** from Reddit posts/comments
 - **DO NOT reference database ratings** - users can see those themselves
-- Include specific student observations like: "Heavy coding assignments", "Professor moves too fast", "Concepts are confusing"
+- **FORMATTING RULES:**
+  - Use quotation marks ONLY for direct quotes: "Exact student words from posts"
+  - For general observations/paraphrases, NO quotes: Heavy coding assignments with tight deadlines
+  - NO "STUDENT QUOTE:" prefix - just the content
 - Focus on WHY students find it difficult/easy based on their actual experiences
 
 Analyze the data and return ONLY valid JSON in this exact format:
@@ -239,7 +242,7 @@ Analyze the data and return ONLY valid JSON in this exact format:
         "rank": "Easy",
         "rating": 2.5,
         "max_rating": 10,
-        "explanation": ["STUDENT QUOTE: 'Actual student reasoning from posts'", "STUDENT QUOTE: 'Another specific reason students mention'", "STUDENT QUOTE: 'Third specific student observation'"],
+        "explanation": ["\"CS111 is one of the hardest classes with lots of proofs and tight quizzes\"", "Heavy coding assignments with unrealistic deadlines", "Professor moves through material too quickly"],
         "minority_opinions": ["Any contrarian difficulty opinions"]
     }},
     "professors": [
@@ -314,7 +317,7 @@ One-sentence vibe (e.g., "Mostly positive but time-consuming").
 
 #### Difficulty
 – Rank: *Easy / Moderate / Hard / Very Hard*  
-– 2-4 bullet points explaining why.
+– 2-4 bullet points explaining why (use quotes only for direct quotes, no quotes for general observations).
 
 #### Professors & What Students Say
 | Professor | ★ Rating | All Available Reviews<sup>†</sup> |
