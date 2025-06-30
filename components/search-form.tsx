@@ -44,7 +44,7 @@ export function SearchForm({ onSearch }: SearchFormProps) {
       <form onSubmit={handleSubmit} className="flex w-full max-w-md items-center space-x-2">
         <Input
           type="text"
-          placeholder="e.g., 'CS010A', 'PSYC001', 'HIST010'"
+          placeholder="e.g., 'CS111', 'PSYC001', 'HIST010'"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="flex-1 bg-white/20 text-white placeholder:text-white/60 border-white/30 focus:ring-white/50"

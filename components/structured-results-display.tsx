@@ -8,6 +8,7 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import redditLogo from "@/app/images/redditlogo.png"
 import googleSheetsLogo from "@/app/images/googlesheetslogo.png"
+import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from 'recharts'
 
 interface StructuredResultsDisplayProps {
   results: {
@@ -77,29 +78,67 @@ interface StructuredResultsDisplayProps {
 }
 
 // Custom Star Rating Component
-const StarRating = ({ rating, maxRating = 5 }: { rating: number; maxRating?: number }) => {
-  const fullStars = Math.floor(rating)
-  const hasHalfStar = rating % 1 >= 0.5
+const StarRating = ({ rating, maxRating = 5, animate = false }: { rating: number; maxRating?: number; animate?: boolean }) => {
+  const [visibleStars, setVisibleStars] = useState(animate ? 0 : rating)
+  
+  useEffect(() => {
+    if (animate) {
+      // Start with 0 stars visible
+      setVisibleStars(0)
+      
+      // Animate stars filling in one by one
+      const totalStars = Math.ceil(rating) // Number of stars to fill (including partial)
+      let currentStar = 0
+      
+      const fillStars = () => {
+        if (currentStar < totalStars) {
+          currentStar += 0.1 // Very small increments for ultra-smooth animation
+          const nextValue = Math.min(currentStar, rating)
+          setVisibleStars(nextValue)
+          
+          // Continue animation with very short interval
+          setTimeout(fillStars, 30) // 30ms between each increment for fast, fluid motion
+        }
+      }
+      
+      // Start animation immediately
+      const timer = setTimeout(fillStars, 50)
+      return () => clearTimeout(timer)
+    } else {
+      setVisibleStars(rating)
+    }
+  }, [rating, animate])
+
+  const fullStars = Math.floor(visibleStars)
+  const hasHalfStar = visibleStars % 1 >= 0.5
   const emptyStars = maxRating - fullStars - (hasHalfStar ? 1 : 0)
 
   return (
     <div className="flex items-center gap-1">
       {/* Full stars */}
       {Array.from({ length: fullStars }).map((_, i) => (
-        <Star key={`full-${i}`} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+        <Star 
+          key={`full-${i}`} 
+          className="h-4 w-4 fill-yellow-400 text-yellow-400 transition-all duration-150 ease-out transform"
+        />
       ))}
       {/* Half star */}
       {hasHalfStar && (
         <div className="relative">
           <Star className="h-4 w-4 text-gray-300" />
-          <Star className="absolute inset-0 h-4 w-4 fill-yellow-400 text-yellow-400" style={{ clipPath: 'inset(0 50% 0 0)' }} />
+          <Star 
+            className="absolute inset-0 h-4 w-4 fill-yellow-400 text-yellow-400 transition-all duration-150 ease-out"
+            style={{ clipPath: 'inset(0 50% 0 0)' }}
+          />
         </div>
       )}
       {/* Empty stars */}
       {Array.from({ length: emptyStars }).map((_, i) => (
-        <Star key={`empty-${i}`} className="h-4 w-4 text-gray-300" />
+        <Star key={`empty-${i}`} className="h-4 w-4 text-gray-300 transition-all duration-150 ease-out" />
       ))}
-      <span className="ml-2 text-sm text-white/80">{rating.toFixed(1)}/{maxRating}</span>
+      <span className="ml-2 text-sm text-white/80">
+        {rating.toFixed(1)}/{maxRating}
+      </span>
     </div>
   )
 }
@@ -143,12 +182,12 @@ const SourceIcon = ({ source }: { source: string }) => {
 }
 
 // Professor Card Component
-const ProfessorCard = ({ professor }: { professor: any }) => {
+const ProfessorCard = ({ professor, animate }: { professor: any; animate: boolean }) => {
   return (
     <Card className="bg-white/10 backdrop-blur-sm border-white/20 p-4 hover:bg-white/15 transition-all">
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-lg font-semibold text-white">{professor.name}</h4>
-        <StarRating rating={professor.rating} maxRating={professor.max_rating} />
+        <StarRating rating={professor.rating} maxRating={professor.max_rating} animate={animate} />
       </div>
       
       <div className="space-y-2">
@@ -365,8 +404,166 @@ const parseUCRDatabaseData = (rawData: string) => {
   return result
 }
 
+// Grade Distribution Radar Chart Component
+const GradeDistributionRadar = ({ gradeText, animate }: { gradeText: string; animate: boolean }) => {
+  const [animatedData, setAnimatedData] = useState<any[]>([])
+  
+  // Parse the grade distribution text to extract components and weights
+  const parseGradeDistribution = (text: string) => {
+    const components = []
+    
+    // Common grade components with estimated weights based on text analysis
+    if (text.toLowerCase().includes('quiz')) {
+      const weight = text.toLowerCase().includes('mostly') || text.toLowerCase().includes('primarily') ? 85 : 70
+      components.push({ subject: 'Quizzes', value: weight, fullMark: 100 })
+    }
+    
+    if (text.toLowerCase().includes('participation')) {
+      const weight = text.toLowerCase().includes('minimal') ? 40 : 65
+      components.push({ subject: 'Participation', value: weight, fullMark: 100 })
+    }
+    
+    if (text.toLowerCase().includes('project')) {
+      const weight = text.toLowerCase().includes('heavy') ? 90 : 75
+      components.push({ subject: 'Projects', value: weight, fullMark: 100 })
+    }
+    
+    if (text.toLowerCase().includes('research')) {
+      components.push({ subject: 'Research', value: 60, fullMark: 100 })
+    }
+    
+    if (text.toLowerCase().includes('exam')) {
+      const weight = text.toLowerCase().includes('minimal') || text.toLowerCase().includes('no heavy') ? 25 : 80
+      components.push({ subject: 'Exams', value: weight, fullMark: 100 })
+    }
+    
+    if (text.toLowerCase().includes('homework') || text.toLowerCase().includes('assignment')) {
+      const weight = text.toLowerCase().includes('heavy') ? 85 : 55
+      components.push({ subject: 'Homework', value: weight, fullMark: 100 })
+    }
+    
+    // Add default components if none found
+    if (components.length === 0) {
+      components.push(
+        { subject: 'Assignments', value: 70, fullMark: 100 },
+        { subject: 'Participation', value: 50, fullMark: 100 },
+        { subject: 'Exams', value: 60, fullMark: 100 },
+        { subject: 'Projects', value: 40, fullMark: 100 }
+      )
+    }
+    
+    return components
+  }
+  
+  const staticData = parseGradeDistribution(gradeText)
+  
+  useEffect(() => {
+    if (animate) {
+      // Start with zero values
+      setAnimatedData(staticData.map(item => ({ ...item, value: 0 })))
+      
+      // Animate to full values
+      const timer = setTimeout(() => {
+        setAnimatedData(staticData)
+      }, 200)
+      
+      return () => clearTimeout(timer)
+    } else {
+      setAnimatedData(staticData)
+    }
+  }, [animate, gradeText])
+  
+  return (
+    <div className="w-full h-96">
+      <ResponsiveContainer width="100%" height="100%">
+        <RadarChart data={animatedData} margin={{ top: 20, right: 80, bottom: 20, left: 80 }}>
+          <PolarGrid 
+            stroke="rgba(255, 255, 255, 0.2)" 
+            strokeWidth={1}
+          />
+          <PolarAngleAxis 
+            dataKey="subject" 
+            tick={{ 
+              fill: 'rgba(255, 255, 255, 0.8)', 
+              fontSize: 12,
+              fontFamily: 'ABC Diatype, -apple-system, BlinkMacSystemFont, sans-serif',
+              fontWeight: 100
+            }}
+            className="text-white"
+          />
+          <PolarRadiusAxis 
+            angle={90} 
+            domain={[0, 100]} 
+            tick={false}
+            tickCount={6}
+          />
+          <Radar
+            name="Grade Weight"
+            dataKey="value"
+            stroke="#60A5FA"
+            fill="rgba(96, 165, 250, 0.3)"
+            strokeWidth={2}
+            dot={false}
+            animationBegin={0}
+            animationDuration={1500}
+            animationEasing="ease-out"
+          />
+        </RadarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
 export function StructuredResultsDisplay({ results, onReset }: StructuredResultsDisplayProps) {
   const [activeTab, setActiveTab] = useState<string>("sentiment")
+  // Animation states for workload cards
+  const [animateWorkload, setAnimateWorkload] = useState(false)
+  // Animation state for professor stars
+  const [animateProfessors, setAnimateProfessors] = useState(false)
+  // Animation state for grade distribution radar
+  const [animateGrades, setAnimateGrades] = useState(false)
+
+  // Reset and trigger animations when sentiment tab becomes active
+  useEffect(() => {
+    if (activeTab === "sentiment") {
+      setAnimateWorkload(false)
+      // Small delay to ensure reset, then trigger animation
+      const timer = setTimeout(() => {
+        setAnimateWorkload(true)
+      }, 10)
+      return () => clearTimeout(timer)
+    } else {
+      setAnimateWorkload(false)
+    }
+  }, [activeTab])
+
+  // Reset and trigger animations when professors tab becomes active
+  useEffect(() => {
+    if (activeTab === "professors") {
+      setAnimateProfessors(false)
+      // Small delay to ensure reset, then trigger animation
+      const timer = setTimeout(() => {
+        setAnimateProfessors(true)
+      }, 10)
+      return () => clearTimeout(timer)
+    } else {
+      setAnimateProfessors(false)
+    }
+  }, [activeTab])
+
+  // Reset and trigger animations when grades tab becomes active
+  useEffect(() => {
+    if (activeTab === "grades") {
+      setAnimateGrades(false)
+      // Small delay to ensure reset, then trigger animation
+      const timer = setTimeout(() => {
+        setAnimateGrades(true)
+      }, 10)
+      return () => clearTimeout(timer)
+    } else {
+      setAnimateGrades(false)
+    }
+  }, [activeTab])
 
   if (!results || !results.structured_data) return null
 
@@ -409,7 +606,7 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
             {results.analysis_metadata?.ucr_database_included && (
               <span className="flex items-center gap-2">
                 <Image src={googleSheetsLogo} alt="Google Sheets" width={16} height={16} className="object-contain" />
-                UCR Database included
+                UCR Database analyzed
               </span>
             )}
           </div>
@@ -465,15 +662,27 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
               <div className="space-y-3">
                 <h4 className="text-lg font-semibold text-white">Workload & Time Commitment</h4>
                 <div className="grid md:grid-cols-3 gap-4">
-                  <div className="bg-white/5 p-3 rounded hover:bg-white/10 transition-all duration-300 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-500">
+                  <div className={`bg-white/5 p-3 rounded hover:bg-white/10 transition-all duration-300 ${
+                    animateWorkload 
+                      ? 'translate-x-0 opacity-100' 
+                      : '-translate-x-4 opacity-0'
+                  } transition-all duration-700 delay-500`}>
                     <p className="text-sm text-white/70">Hours per week</p>
                     <p className="text-white font-medium">{data.overall_sentiment.workload.hours_per_week}</p>
                   </div>
-                  <div className="bg-white/5 p-3 rounded hover:bg-white/10 transition-all duration-300 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-600">
+                  <div className={`bg-white/5 p-3 rounded hover:bg-white/10 transition-all duration-300 ${
+                    animateWorkload 
+                      ? 'translate-x-0 opacity-100' 
+                      : '-translate-x-4 opacity-0'
+                  } transition-all duration-700 delay-600`}>
                     <p className="text-sm text-white/70">Assignments</p>
                     <p className="text-white font-medium">{data.overall_sentiment.workload.assignments}</p>
                   </div>
-                  <div className="bg-white/5 p-3 rounded hover:bg-white/10 transition-all duration-300 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-700">
+                  <div className={`bg-white/5 p-3 rounded hover:bg-white/10 transition-all duration-300 ${
+                    animateWorkload 
+                      ? 'translate-x-0 opacity-100' 
+                      : '-translate-x-4 opacity-0'
+                  } transition-all duration-700 delay-700`}>
                     <p className="text-sm text-white/70">Time commitment</p>
                     <p className="text-white font-medium">{data.overall_sentiment.workload.time_commitment}</p>
                   </div>
@@ -516,7 +725,7 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
               {data.professors
                 .sort((a, b) => b.rating - a.rating) // Sort by rating, highest first
                 .map((professor, idx) => (
-                <ProfessorCard key={idx} professor={professor} />
+                <ProfessorCard key={idx} professor={professor} animate={animateProfessors} />
               ))}
             </div>
           </Card>
@@ -575,217 +784,241 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
           </Card>
         )}
 
-                 {/* Grade Distribution Tab */}
-         {activeTab === "grades" && (
-           <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
-             <h3 className="text-xl font-bold text-white mb-4">Grade Distribution</h3>
-             <p className="text-white/90">
-               {data.grade_distribution || "No clear information available about grade distribution."}
-             </p>
-           </Card>
-         )}
+        {/* Grade Distribution Tab */}
+        {activeTab === "grades" && (
+          <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
+            <h3 className="text-xl font-bold text-white mb-4">Grade Distribution</h3>
+            
+            {data.grade_distribution ? (
+              <div className="space-y-6">
+                {/* Original Description */}
+                <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                  <h4 className="text-lg font-semibold text-white mb-2">Student Insights</h4>
+                  <p className="text-white/90 leading-relaxed">
+                    {data.grade_distribution}
+                  </p>
+                </div>
+                
+                {/* Radar Chart */}
+                <div className="bg-white/5 border border-white/10 rounded-lg p-4 pointer-events-none">
+                  <h4 className="text-lg font-semibold text-white mb-4 text-center">Grade Component Weights</h4>
+                  <GradeDistributionRadar gradeText={data.grade_distribution || ""} animate={animateGrades} />
+                  <p className="text-white/50 text-xs text-center mt-4 italic">
+                    *Please note this chart may not be fully accurate but instead is a general estimation.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <FileText className="h-12 w-12 text-white/40 mx-auto mb-4" />
+                <p className="text-white/60">No grade distribution information available</p>
+                <p className="text-white/40 text-sm mt-2">Check other tabs for course insights</p>
+              </div>
+            )}
+          </Card>
+        )}
 
-         {/* Reddit Posts Tab */}
-         {activeTab === "reddit" && results.raw_data?.posts && (
-           <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
-             <h3 className="text-xl font-bold text-white mb-4">Relevant Reddit Posts</h3>
-             <p className="text-white/70 text-sm mb-6">
-               Posts prioritized by recency and student opinions, advice, and course-relevant content
-             </p>
-             <div className="space-y-4">
-               {filterRelevantPosts(results.raw_data.posts).map((postData: any, idx: number) => (
-                 <Card key={idx} className="bg-white/5 border-white/10 p-4 hover:bg-white/10 transition-all">
-                   <div className="flex items-start justify-between mb-3">
-                     <h4 className="text-white font-medium text-lg flex-1 pr-4">
-                       <a 
-                         href={postData.post.url} 
-                         target="_blank" 
-                         rel="noopener noreferrer"
-                         className="hover:text-blue-300 transition-colors"
-                       >
-                         {postData.post.title}
-                       </a>
-                     </h4>
-                     <div className="flex items-center gap-3 text-xs text-white/60 shrink-0">
-                       <span className="flex items-center gap-1">
-                         <Users className="h-3 w-3" />
-                         {postData.post.score}
-                       </span>
-                       <span className="flex items-center gap-1">
-                         <MessageCircle className="h-3 w-3" />
-                         {postData.post.num_comments}
-                       </span>
-                     </div>
-                   </div>
-                   
-                   {/* Post Date and Categories */}
-                   <div className="flex items-center gap-4 mb-3">
-                     <span className="text-xs text-white/60 flex items-center gap-1">
-                       {postData.formattedDate}
-                       {postData.daysSince <= 30 && (
-                         <span className="bg-green-500/20 text-green-300 px-2 py-1 rounded text-xs ml-2">
-                           Recent
-                         </span>
-                       )}
-                     </span>
-                     <div className="flex items-center gap-2">
-                       {postData.categories.map((category: any, catIdx: number) => (
-                         <span 
-                           key={catIdx}
-                           className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded flex items-center gap-1"
-                         >
-                           {category.label}
-                         </span>
-                       ))}
-                     </div>
-                   </div>
-                   
-                   {postData.post.selftext && (
-                     <div className="text-white/80 text-sm mb-3 p-3 bg-white/5 rounded">
-                       <p className="line-clamp-3">{postData.post.selftext}</p>
-                     </div>
-                   )}
-                   
-                   <div className="flex items-center justify-between">
-                     <span className="text-xs text-white/50">
-                       {postData.usefulComments} useful comments
-                     </span>
-                     <a
-                       href={postData.post.url}
-                       target="_blank"
-                       rel="noopener noreferrer"
-                       className="text-blue-300 hover:text-blue-200 text-sm flex items-center gap-1"
-                     >
-                       <LinkIcon className="h-3 w-3" />
-                       View on Reddit
-                     </a>
-                   </div>
-                 </Card>
-               ))}
-             </div>
-           </Card>
-         )}
+        {/* Reddit Posts Tab */}
+        {activeTab === "reddit" && results.raw_data?.posts && (
+          <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
+            <h3 className="text-xl font-bold text-white mb-4">Relevant Reddit Posts</h3>
+            <p className="text-white/70 text-sm mb-6">
+              Posts prioritized by recency and student opinions, advice, and course-relevant content
+            </p>
+            <div className="space-y-4">
+              {filterRelevantPosts(results.raw_data.posts).map((postData: any, idx: number) => (
+                <Card key={idx} className="bg-white/5 border-white/10 p-4 hover:bg-white/10 transition-all">
+                  <div className="flex items-start justify-between mb-3">
+                    <h4 className="text-white font-medium text-lg flex-1 pr-4">
+                      <a 
+                        href={postData.post.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="hover:text-blue-300 transition-colors"
+                      >
+                        {postData.post.title}
+                      </a>
+                    </h4>
+                    <div className="flex items-center gap-3 text-xs text-white/60 shrink-0">
+                      <span className="flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        {postData.post.score}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MessageCircle className="h-3 w-3" />
+                        {postData.post.num_comments}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Post Date and Categories */}
+                  <div className="flex items-center gap-4 mb-3">
+                    <span className="text-xs text-white/60 flex items-center gap-1">
+                      {postData.formattedDate}
+                      {postData.daysSince <= 30 && (
+                        <span className="bg-green-500/20 text-green-300 px-2 py-1 rounded text-xs ml-2">
+                          Recent
+                        </span>
+                      )}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {postData.categories.map((category: any, catIdx: number) => (
+                        <span 
+                          key={catIdx}
+                          className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded flex items-center gap-1"
+                        >
+                          {category.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {postData.post.selftext && (
+                    <div className="text-white/80 text-sm mb-3 p-3 bg-white/5 rounded">
+                      <p className="line-clamp-3">{postData.post.selftext}</p>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-white/50">
+                      {postData.usefulComments} useful comments
+                    </span>
+                    <a
+                      href={postData.post.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-300 hover:text-blue-200 text-sm flex items-center gap-1"
+                    >
+                      <LinkIcon className="h-3 w-3" />
+                      View on Reddit
+                    </a>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </Card>
+        )}
 
-         {/* Database Tab */}
-         {activeTab === "database" && results.raw_data?.ucr_database && (
-           <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
-             <h3 className="text-xl font-bold text-white mb-4">UCR Class Difficulty Database</h3>
-             <p className="text-white/70 text-sm mb-6">
-               Student reviews from the{' '}
-               <a 
-                 href="https://docs.google.com/spreadsheets/d/1qiy_Oi8aFiPmL4QSTR3zHe74kmvc6e_159L1mAUUlU0/edit?usp=sharing" 
-                 target="_blank" 
-                 rel="noopener noreferrer"
-                 className="underline hover:text-white transition-colors"
-               >
-                 UCR class difficulty spreadsheet
-               </a>
-             </p>
-             
-             {(() => {
-               const parsedData = parseUCRDatabaseData(results.raw_data.ucr_database)
-               
-               return (
-                 <div className="space-y-6">
-                   {/* Course Header */}
-                   <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-lg p-4">
-                     <div className="flex items-center justify-between">
-                       <div>
-                         <h4 className="text-2xl font-bold text-white">{parsedData.courseCode}</h4>
-                         <p className="text-white/70">Course Analysis</p>
-                       </div>
-                       <div className="text-right">
-                         <p className="text-sm text-white/60">Overall Average Difficulty</p>
-                         <p className={`text-3xl font-bold ${
-                           parsedData.overallDifficulty.includes('/10')
-                             ? parseFloat(parsedData.overallDifficulty) <= 3
-                               ? 'text-green-300'
-                               : parseFloat(parsedData.overallDifficulty) <= 6
-                               ? 'text-yellow-300'
-                               : 'text-red-300'
-                             : 'text-orange-300'
-                         }`}>
-                           {parsedData.overallDifficulty}
-                         </p>
-                       </div>
-                     </div>
-                   </div>
+        {/* Database Tab */}
+        {activeTab === "database" && results.raw_data?.ucr_database && (
+          <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
+            <h3 className="text-xl font-bold text-white mb-4">UCR Class Difficulty Database</h3>
+            <p className="text-white/70 text-sm mb-6">
+              Student reviews from the{' '}
+              <a 
+                href="https://docs.google.com/spreadsheets/d/1qiy_Oi8aFiPmL4QSTR3zHe74kmvc6e_159L1mAUUlU0/edit?usp=sharing" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="underline hover:text-white transition-colors"
+              >
+                UCR class difficulty spreadsheet
+              </a>
+            </p>
+            
+            {(() => {
+              const parsedData = parseUCRDatabaseData(results.raw_data.ucr_database)
+              
+              return (
+                <div className="space-y-6">
+                  {/* Course Header */}
+                  <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-2xl font-bold text-white">{parsedData.courseCode}</h4>
+                        <p className="text-white/70">Course Analysis</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-white/60">Overall Average Difficulty</p>
+                        <p className={`text-3xl font-bold ${
+                          parsedData.overallDifficulty.includes('/10')
+                            ? parseFloat(parsedData.overallDifficulty) <= 3
+                              ? 'text-green-300'
+                              : parseFloat(parsedData.overallDifficulty) <= 6
+                              ? 'text-yellow-300'
+                              : 'text-red-300'
+                            : 'text-orange-300'
+                        }`}>
+                          {parsedData.overallDifficulty}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
-                   {/* Reviews Table */}
-                   <div className="bg-white/5 rounded-lg border border-white/10 overflow-hidden">
-                     {/* Table Header */}
-                     <div className="bg-white/10 border-b border-white/10 p-4">
-                       <div className="grid grid-cols-12 gap-4 text-sm font-semibold text-white">
-                         <div className="col-span-1">#</div>
-                         <div className="col-span-2">Date</div>
-                         <div className="col-span-2">Difficulty</div>
-                         <div className="col-span-7">Student Comments</div>
-                       </div>
-                     </div>
-                     
-                     {/* Table Body */}
-                     <div className="max-h-96 overflow-y-auto">
-                       {parsedData.reviews.map((review, idx) => (
-                         <div 
-                           key={idx} 
-                           className={`grid grid-cols-12 gap-4 p-4 border-b border-white/5 hover:bg-white/5 transition-colors ${
-                             idx % 2 === 0 ? 'bg-white/2' : 'bg-transparent'
-                           }`}
-                         >
-                           <div className="col-span-1 text-white/60 text-sm font-mono">
-                             {review.reviewNumber.replace('Review ', '')}
-                           </div>
-                           <div className="col-span-2 text-white/80 text-sm">
-                             {review.date}
-                           </div>
-                           <div className="col-span-2">
-                             <div className="flex items-center gap-2">
-                               <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                                 review.difficulty.includes('/10') 
-                                   ? parseInt(review.difficulty) <= 3 
-                                     ? 'bg-green-500/20 text-green-300' 
-                                     : parseInt(review.difficulty) <= 6 
-                                     ? 'bg-yellow-500/20 text-yellow-300'
-                                     : 'bg-red-500/20 text-red-300'
-                                   : 'bg-gray-500/20 text-gray-300'
-                               }`}>
-                                 {review.difficulty}
-                               </span>
-                             </div>
-                           </div>
-                           <div className="col-span-7 text-white/90 text-sm leading-relaxed">
-                             {review.comments}
-                           </div>
-                         </div>
-                       ))}
-                     </div>
-                   </div>
-                   
-                   {/* Summary Stats */}
-                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                     <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
-                       <p className="text-2xl font-bold text-blue-300">{parsedData.reviews.length}</p>
-                       <p className="text-white/60 text-sm">Total Reviews</p>
-                     </div>
-                     <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
-                       <p className="text-2xl font-bold text-green-300">
-                         {parsedData.reviews.filter(r => r.difficulty.includes('/10') && parseInt(r.difficulty) <= 3).length}
-                       </p>
-                       <p className="text-white/60 text-sm">Easy (1-3/10)</p>
-                     </div>
-                     <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
-                       <p className="text-2xl font-bold text-red-300">
-                         {parsedData.reviews.filter(r => r.difficulty.includes('/10') && parseInt(r.difficulty) >= 7).length}
-                       </p>
-                       <p className="text-white/60 text-sm">Hard (7-10/10)</p>
-                     </div>
-                   </div>
-             </div>
-               )
-             })()}
-           </Card>
-         )}
-       </div>
-     </div>
-   )
- } 
+                  {/* Reviews Table */}
+                  <div className="bg-white/5 rounded-lg border border-white/10 overflow-hidden">
+                    {/* Table Header */}
+                    <div className="bg-white/10 border-b border-white/10 p-4">
+                      <div className="grid grid-cols-12 gap-4 text-sm font-semibold text-white">
+                        <div className="col-span-1">#</div>
+                        <div className="col-span-2">Date</div>
+                        <div className="col-span-2">Difficulty</div>
+                        <div className="col-span-7">Student Comments</div>
+                      </div>
+                    </div>
+                    
+                    {/* Table Body */}
+                    <div className="max-h-96 overflow-y-auto">
+                      {parsedData.reviews.map((review, idx) => (
+                        <div 
+                          key={idx} 
+                          className={`grid grid-cols-12 gap-4 p-4 border-b border-white/5 hover:bg-white/5 transition-colors ${
+                            idx % 2 === 0 ? 'bg-white/2' : 'bg-transparent'
+                          }`}
+                        >
+                          <div className="col-span-1 text-white/60 text-sm font-mono">
+                            {review.reviewNumber.replace('Review ', '')}
+                          </div>
+                          <div className="col-span-2 text-white/80 text-sm">
+                            {review.date}
+                          </div>
+                          <div className="col-span-2">
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                review.difficulty.includes('/10') 
+                                  ? parseInt(review.difficulty) <= 3 
+                                    ? 'bg-green-500/20 text-green-300' 
+                                    : parseInt(review.difficulty) <= 6 
+                                    ? 'bg-yellow-500/20 text-yellow-300'
+                                    : 'bg-red-500/20 text-red-300'
+                                  : 'bg-gray-500/20 text-gray-300'
+                              }`}>
+                                {review.difficulty}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="col-span-7 text-white/90 text-sm leading-relaxed">
+                            {review.comments}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
+                      <p className="text-2xl font-bold text-blue-300">{parsedData.reviews.length}</p>
+                      <p className="text-white/60 text-sm">Total Reviews</p>
+                    </div>
+                    <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
+                      <p className="text-2xl font-bold text-green-300">
+                        {parsedData.reviews.filter(r => r.difficulty.includes('/10') && parseInt(r.difficulty) <= 3).length}
+                      </p>
+                      <p className="text-white/60 text-sm">Easy (1-3/10)</p>
+                    </div>
+                    <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
+                      <p className="text-2xl font-bold text-red-300">
+                        {parsedData.reviews.filter(r => r.difficulty.includes('/10') && parseInt(r.difficulty) >= 7).length}
+                      </p>
+                      <p className="text-white/60 text-sm">Hard (7-10/10)</p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+          </Card>
+        )}
+      </div>
+    </div>
+  )
+} 

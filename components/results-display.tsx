@@ -274,7 +274,7 @@ export function ResultsDisplay({ results, onReset }: ResultsDisplayProps) {
                 )}
                 {results.ai_analysis?.analysis_metadata?.ucr_database_included && (
                   <span className="flex items-center">
-                    <Database className="mr-1.5 h-4 w-4" /> UCR Database included
+                    <Database className="mr-1.5 h-4 w-4" /> UCR Database analyzed
                   </span>
                 )}
               </div>

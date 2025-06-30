@@ -101,6 +101,7 @@ interface SearchResults {
 export default function HomePage() {
   const [results, setResults] = useState<SearchResults | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [showShareToast, setShowShareToast] = useState(false)
 
   const handleSearch = async (query: string) => {
     if (!query) return
@@ -189,16 +190,56 @@ export default function HomePage() {
     }
   }
 
+  const handleShare = async () => {
+    try {
+      const shareUrl = window.location.href
+      const shareText = results 
+        ? `Check out this UCR course analysis for ${results.keyword?.toUpperCase()}: ${shareUrl}`
+        : `UCR Course Guide - Get insights on UCR courses: ${shareUrl}`
+
+      // Try to use native Web Share API if available
+      if (navigator.share) {
+        await navigator.share({
+          title: 'UCR Course Guide',
+          text: shareText,
+          url: shareUrl,
+        })
+      } else {
+        // Fallback to clipboard
+        await navigator.clipboard.writeText(shareUrl)
+        setShowShareToast(true)
+        setTimeout(() => setShowShareToast(false), 3000)
+      }
+    } catch (error) {
+      console.error('Share failed:', error)
+      // Fallback: try to copy to clipboard
+      try {
+        await navigator.clipboard.writeText(window.location.href)
+        setShowShareToast(true)
+        setTimeout(() => setShowShareToast(false), 3000)
+      } catch (clipboardError) {
+        console.error('Clipboard copy failed:', clipboardError)
+      }
+    }
+  }
+
   return (
     <div className="relative min-h-screen w-full">
       <GradientBackground />
       <div className="relative h-full">
         <main className="flex flex-col items-center justify-center p-4 md:p-8 min-h-screen">
           <div className="absolute top-4 right-4 md:top-6 md:right-6">
-            <Button variant="ghost" size="icon" className="text-white/80 hover:text-white">
+            <Button variant="ghost" size="icon" className="text-white/80 hover:text-white" onClick={handleShare}>
               <Share2 className="h-5 w-5" />
               <span className="sr-only">Share</span>
             </Button>
+            
+            {/* Toast notification */}
+            {showShareToast && (
+              <div className="absolute top-12 right-0 bg-white/90 backdrop-blur-sm text-gray-800 px-3 py-2 rounded-lg shadow-lg text-sm font-medium animate-in fade-in-0 slide-in-from-top-2 duration-300">
+                Link copied to clipboard!
+              </div>
+            )}
           </div>
           <div
             className={`w-full space-y-8 transition-all duration-500 ${
@@ -210,7 +251,7 @@ export default function HomePage() {
               <div className="flex flex-col items-center justify-center text-white/80">
                 <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-white/80"></div>
                 <p className="mt-4 text-lg">Analyzing UCR community discussions...</p>
-                <p className="mt-2 text-sm text-white/60">this may take 30-60 seconds</p>
+                <p className="mt-2 text-sm text-white/60">this may take 15-20 seconds</p>
               </div>
             )}
             {results && results.structured_data && (
