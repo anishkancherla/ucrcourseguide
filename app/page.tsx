@@ -228,7 +228,7 @@ export default function HomePage() {
       <GradientBackground />
       <div className="relative h-full">
         <main className="flex flex-col items-center justify-center p-4 md:p-8 min-h-screen">
-          <div className="absolute top-8 right-4 md:top-6 md:right-6 z-50">
+          <div className="absolute top-10 right-8 md:top-6 md:right-6 z-50">
             <Button variant="ghost" size="icon" className="text-white/80 hover:text-white bg-black/20 backdrop-blur-sm border border-white/20" onClick={handleShare}>
               <Share2 className="h-5 w-5" />
               <span className="sr-only">Share</span>
