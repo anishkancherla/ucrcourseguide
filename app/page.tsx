@@ -251,7 +251,7 @@ export default function HomePage() {
               <div className="flex flex-col items-center justify-center text-white/80">
                 <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-white/80"></div>
                 <p className="mt-4 text-lg">Analyzing UCR community discussions...</p>
-                <p className="mt-2 text-sm text-white/60">this may take 15-20 seconds</p>
+                <p className="mt-2 text-sm text-white/60">this may take 20-40 seconds</p>
               </div>
             )}
             {results && results.structured_data && (

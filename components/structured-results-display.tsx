@@ -554,6 +554,8 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
   const [animateProfessors, setAnimateProfessors] = useState(false)
   // Animation state for grade distribution radar
   const [animateGrades, setAnimateGrades] = useState(false)
+  // Animation state for advice section
+  const [animateAdvice, setAnimateAdvice] = useState(false)
 
   // Reset and trigger animations when sentiment tab becomes active
   useEffect(() => {
@@ -597,6 +599,20 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
     }
   }, [activeTab])
 
+  // Reset and trigger animations when advice tab becomes active
+  useEffect(() => {
+    if (activeTab === "advice") {
+      setAnimateAdvice(false)
+      // Small delay to ensure reset, then trigger animation
+      const timer = setTimeout(() => {
+        setAnimateAdvice(true)
+      }, 10)
+      return () => clearTimeout(timer)
+    } else {
+      setAnimateAdvice(false)
+    }
+  }, [activeTab])
+
   if (!results || !results.structured_data) return null
 
   const data = results.structured_data
@@ -605,7 +621,7 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
     { id: "sentiment", label: "Overall Sentiment", icon: Star },
     { id: "difficulty", label: "Difficulty", icon: BarChart2 },
     { id: "professors", label: "Professors", icon: Users },
-    { id: "advice", label: "Advice & Tips", icon: Lightbulb },
+    { id: "advice", label: "Tips", icon: Lightbulb },
     { id: "grades", label: "Grade Distribution", icon: FileText },
     { id: "reddit", label: "Relevant Reddit Posts", icon: MessageCircle },
     { id: "database", label: "UCR Class Difficulty Database Info", icon: Database },
@@ -769,54 +785,75 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
 
         {/* Advice & Tips Tab (with Pitfalls) */}
         {activeTab === "advice" && (data.advice || data.common_pitfalls) && (
-          <LiquidGlassContainer variant="default" disableInteractive={true} className="p-6">
-            <h3 className="text-xl font-bold text-white mb-4">Advice & Tips for Success</h3>
-            <div className="space-y-6">
-              {data.advice && (
+          <LiquidGlassContainer variant="default" disableInteractive={true} className="p-8">
+            <div className="text-center mb-8">
+              <h3 className="text-3xl font-bold text-white mb-2 flex items-center justify-center gap-3">
+                Advice & Tips
+              </h3>
+              <p className="text-white/60">Tips, resources, and things to avoid</p>
+            </div>
+            
+            <div className="grid gap-8 lg:grid-cols-2">
+              {/* Course-Specific Tips */}
+              {data.advice && data.advice.course_specific_tips && data.advice.course_specific_tips.length > 0 && (
                 <div className="space-y-4">
-                  {data.advice.course_specific_tips?.length > 0 && (
+                  <div className="flex items-center gap-3 mb-6">
                     <div>
-                      <h4 className="text-lg font-semibold text-white mb-2">Course-Specific Tips</h4>
-                      <ol className="space-y-2">
-                        {data.advice.course_specific_tips.map((tip, idx) => (
-                          <li key={idx} className="text-white/80 flex items-start">
-                            <span className="text-blue-400 mr-2 font-bold">{idx + 1}.</span>
-                            {tip}
-                          </li>
-                        ))}
-                      </ol>
+                      <h4 className="text-xl font-bold text-white">Course-Specific Tips</h4>
                     </div>
-                  )}
+                  </div>
                   
-                  {data.advice.resources?.length > 0 && (
-                    <div>
-                      <h4 className="text-lg font-semibold text-white mb-2">Recommended Resources</h4>
-                      <ul className="space-y-2">
-                        {data.advice.resources.map((resource, idx) => (
-                          <li key={idx} className="text-white/80 flex items-start">
-                            <span className="text-purple-400 mr-2">•</span>
-                            {resource}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                  <div className="space-y-3">
+                    {data.advice.course_specific_tips.map((tip, idx) => (
+                      <div 
+                        key={idx} 
+                        className={`group bg-gradient-to-r from-slate-500/10 to-slate-600/10 border border-slate-500/20 rounded-xl p-4 hover:from-slate-500/15 hover:to-slate-600/15 transition-all duration-300 ${
+                          animateAdvice 
+                            ? 'translate-x-0 opacity-100' 
+                            : '-translate-x-4 opacity-0'
+                        }`}
+                        style={{ transitionDelay: `${idx * 100}ms` }}
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="bg-slate-500/20 text-slate-300 rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm shrink-0 group-hover:bg-slate-500/30 transition-colors">
+                            {idx + 1}
+                          </div>
+                          <p className="text-white/90 leading-relaxed group-hover:text-white transition-colors">
+                            {tip}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               
-              {/* Common Pitfalls Section */}
-              {data.common_pitfalls && data.common_pitfalls.length > 0 && (
-                <div>
-                  <h4 className="text-lg font-semibold text-white mb-3 flex items-center">
-                    <AlertTriangle className="mr-2 h-5 w-5 text-red-400" />
-                    Common Pitfalls to Avoid
-                  </h4>
+              {/* Recommended Resources */}
+              {data.advice && data.advice.resources && data.advice.resources.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div>
+                      <h4 className="text-xl font-bold text-white">Recommended Resources</h4>
+                    </div>
+                  </div>
+                  
                   <div className="space-y-3">
-                    {data.common_pitfalls.map((pitfall, idx) => (
-                      <div key={idx} className="bg-red-500/10 border border-red-500/20 p-3 rounded">
-                        <div className="flex items-start">
-                          <span className="text-red-400 mr-2">⚠️</span>
-                          <p className="text-white/90">{pitfall}</p>
+                    {data.advice.resources.map((resource, idx) => (
+                      <div 
+                        key={idx} 
+                        className={`group bg-gradient-to-r from-gray-500/10 to-gray-600/10 border border-gray-500/20 rounded-xl p-4 hover:from-gray-500/15 hover:to-gray-600/15 transition-all duration-300 ${
+                          animateAdvice 
+                            ? 'translate-x-0 opacity-100' 
+                            : '-translate-x-4 opacity-0'
+                        }`}
+                        style={{ transitionDelay: `${idx * 100}ms` }}
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="bg-gray-500/20 text-gray-300 rounded-full w-8 h-8 flex items-center justify-center shrink-0 group-hover:bg-gray-500/30 transition-colors">
+                          </div>
+                          <p className="text-white/90 leading-relaxed group-hover:text-white transition-colors">
+                            {resource}
+                          </p>
                         </div>
                       </div>
                     ))}
@@ -824,6 +861,49 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                 </div>
               )}
             </div>
+            
+            {/* Common Pitfalls Section */}
+            {data.common_pitfalls && data.common_pitfalls.length > 0 && (
+              <div className="mt-12">
+                <div className="flex items-center justify-center gap-3 mb-8">
+                  <div className="text-center">
+                    <h4 className="text-2xl font-bold text-white">Common Pitfalls to Avoid</h4>
+                  </div>
+                </div>
+                
+                <div className="grid gap-4 md:grid-cols-2">
+                  {data.common_pitfalls.map((pitfall, idx) => (
+                    <div 
+                      key={idx} 
+                      className={`group relative bg-gradient-to-r from-zinc-500/10 to-zinc-600/10 border border-zinc-500/20 rounded-xl p-5 hover:from-zinc-500/15 hover:to-zinc-600/15 transition-all duration-300 ${
+                        animateAdvice 
+                          ? 'translate-y-0 opacity-100' 
+                          : 'translate-y-4 opacity-0'
+                      }`}
+                      style={{ transitionDelay: `${idx * 150}ms` }}
+                    >
+                      {/* Animated warning pulse */}
+                      <div className="absolute -top-2 -right-2 bg-zinc-500 rounded-full w-6 h-6 flex items-center justify-center animate-pulse">
+                        <span className="text-white text-xs font-bold">!</span>
+                      </div>
+                      
+                      <div className="flex items-start gap-4">
+                        <div className="bg-zinc-500/20 text-zinc-300 rounded-full w-10 h-10 flex items-center justify-center text-lg shrink-0 group-hover:bg-zinc-500/30 transition-colors">
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-white/90 leading-relaxed group-hover:text-white transition-colors font-medium">
+                            {pitfall}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Subtle glow effect on hover */}
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-zinc-500/5 to-zinc-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </LiquidGlassContainer>
         )}
 
