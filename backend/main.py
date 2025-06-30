@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, Any, List
@@ -194,7 +195,7 @@ async def get_structured_course_analysis(
             }
             
             # Use structured analysis method
-            analysis = openai_service.analyze_course_discussions_structured(course_data)
+            analysis = await openai_service.analyze_course_discussions_structured(course_data)
             
             return {
                 "success": True,
@@ -219,7 +220,13 @@ async def get_structured_course_analysis(
             }
         
         post_ids = [post["id"] for post in ucr_posts[:max_posts]]
-        full_content_data = await reddit_service.get_multiple_posts_for_ai(post_ids, max_comments_per_post)
+        
+        # 🚀 PARALLEL DATA GATHERING - Fetch Reddit full content AND Sheets data simultaneously!
+        logger.info("Fetching Reddit full content and UCR database data in parallel...")
+        reddit_task = reddit_service.get_multiple_posts_for_ai(post_ids, max_comments_per_post)
+        sheets_task = asyncio.to_thread(sheets_service.format_for_ai_analysis, keyword.strip())
+        
+        full_content_data, ucr_database_data = await asyncio.gather(reddit_task, sheets_task)
         
         if not full_content_data["success"]:
             return {
@@ -232,8 +239,6 @@ async def get_structured_course_analysis(
         # 🎯 FILTER POSTS FOR MAIN TOPIC RELEVANCE (before AI analysis)
         filtered_posts_data = reddit_service.filter_posts_for_main_topic(posts_data, keyword.strip())
         
-        ucr_database_data = sheets_service.format_for_ai_analysis(keyword.strip())
-        
         course_data = {
             "course": keyword.strip(),
             "posts": filtered_posts_data,  # Use filtered posts for AI analysis
@@ -241,7 +246,7 @@ async def get_structured_course_analysis(
         }
         
         # Use structured analysis method
-        analysis = openai_service.analyze_course_discussions_structured(course_data)
+        analysis = await openai_service.analyze_course_discussions_structured(course_data)
         
         return {
             "success": True,
@@ -296,7 +301,7 @@ async def get_complete_course_analysis(
             }
             
             # run ai analysis with just database data
-            ai_analysis = openai_service.analyze_course_discussions(course_data)
+            ai_analysis = await openai_service.analyze_course_discussions(course_data)
             
             return {
                 "success": True,
@@ -323,8 +328,12 @@ async def get_complete_course_analysis(
         # get post ids from search results
         post_ids = [post["id"] for post in ucr_posts[:max_posts]]
         
-        # get full content for ai analysis
-        full_content_data = await reddit_service.get_multiple_posts_for_ai(post_ids, max_comments_per_post)
+        # step 2 & 3: 🚀 PARALLEL DATA GATHERING - Fetch Reddit full content AND Sheets data simultaneously!
+        logger.info("Fetching Reddit full content and UCR database data in parallel...")
+        reddit_task = reddit_service.get_multiple_posts_for_ai(post_ids, max_comments_per_post)
+        sheets_task = asyncio.to_thread(sheets_service.format_for_ai_analysis, keyword.strip())
+        
+        full_content_data, ucr_database_data = await asyncio.gather(reddit_task, sheets_task)
         
         if not full_content_data["success"]:
             return {
@@ -335,11 +344,8 @@ async def get_complete_course_analysis(
         
         posts_data = full_content_data["data"]
         
-        # step 3: 🎯 FILTER POSTS FOR MAIN TOPIC RELEVANCE (before AI analysis)
+        # step 4: 🎯 FILTER POSTS FOR MAIN TOPIC RELEVANCE (before AI analysis)
         filtered_posts_data = reddit_service.filter_posts_for_main_topic(posts_data, keyword.strip())
-        
-        # step 4: get ucr database data
-        ucr_database_data = sheets_service.format_for_ai_analysis(keyword.strip())
         
         # step 5: combine data for ai analysis
         course_data = {
@@ -349,7 +355,7 @@ async def get_complete_course_analysis(
         }
         
         # step 6: run ai analysis
-        ai_analysis = openai_service.analyze_course_discussions(course_data)
+        ai_analysis = await openai_service.analyze_course_discussions(course_data)
         
         return {
             "success": True,

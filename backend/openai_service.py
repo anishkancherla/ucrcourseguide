@@ -1,4 +1,4 @@
-from openai import OpenAI
+from openai import AsyncOpenAI
 from typing import Dict, Any, List
 from config import config
 import logging
@@ -7,18 +7,18 @@ import json
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class OpenAIService:
+class AsyncOpenAIService:
     def __init__(self):
-        """setup openai client"""
+        """setup async openai client"""
         try:
-            self.client = OpenAI(api_key=config.OPENAI_API_KEY)
+            self.client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
             self.model = config.OPENAI_MODEL
-            logger.info(f"OpenAI client initialized with model: {self.model}")
+            logger.info(f"Async OpenAI client initialized with model: {self.model}")
         except Exception as e:
-            logger.error(f"Failed to initialize OpenAI client: {e}")
+            logger.error(f"Failed to initialize Async OpenAI client: {e}")
             raise
     
-    def analyze_course_discussions_structured(self, course_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def analyze_course_discussions_structured(self, course_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         analyze ucr course discussions and return structured data for frontend
         """
@@ -41,8 +41,8 @@ class OpenAIService:
             # create structured data prompt
             prompt = self._create_structured_analysis_prompt(course, formatted_reddit_data, ucr_database)
             
-            # call openai api
-            response = self.client.chat.completions.create(
+            # call openai api (async)
+            response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {
@@ -86,7 +86,7 @@ class OpenAIService:
                 "course": course
             }
 
-    def analyze_course_discussions(self, course_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def analyze_course_discussions(self, course_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         analyze ucr course discussions using gpt
         """
@@ -110,8 +110,8 @@ class OpenAIService:
             # create the prompt
             prompt = self._create_analysis_prompt(course, formatted_reddit_data, ucr_database)
             
-            # call openai api
-            response = self.client.chat.completions.create(
+            # call openai api (async)
+            response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {
@@ -359,4 +359,4 @@ If discussed, summarise; else "No clear info."
 {ucr_database_data if ucr_database_data.strip() else "No UCR database entries found for this course."}"""
 
 # create a global instance
-openai_service = OpenAIService() 
+openai_service = AsyncOpenAIService() 

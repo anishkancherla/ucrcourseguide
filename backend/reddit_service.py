@@ -1,4 +1,5 @@
 import asyncpraw
+import asyncio
 from typing import List, Dict, Any
 from config import config
 import logging
@@ -203,22 +204,33 @@ class AsyncRedditService:
             await self._ensure_reddit_initialized()
             logger.info(f"Getting full content for {len(post_ids)} posts with max {max_comments_per_post} comments each")
             
-            posts_data = []
+            # 🚀 PARALLEL PROCESSING - Fetch all posts simultaneously!
+            logger.info("Fetching all posts in parallel...")
+            tasks = [
+                self.get_full_post_content_for_ai(post_id, max_comments_per_post) 
+                for post_id in post_ids
+            ]
             
-            for post_id in post_ids:
+            # Wait for all posts to complete simultaneously
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            posts_data = []
+            for i, result in enumerate(results):
                 try:
-                    full_post_data = await self.get_full_post_content_for_ai(post_id, max_comments_per_post)
-                    
-                    if full_post_data["success"]:
+                    if isinstance(result, Exception):
+                        logger.warning(f"Error processing post {post_ids[i]}: {result}")
+                        continue
+                        
+                    if result["success"]:
                         posts_data.append({
-                            "post": full_post_data["post"],
-                            "comments": full_post_data["comments"]
+                            "post": result["post"],
+                            "comments": result["comments"]
                         })
                     else:
-                        logger.warning(f"Failed to get content for post {post_id}: {full_post_data.get('error', 'Unknown error')}")
+                        logger.warning(f"Failed to get content for post {post_ids[i]}: {result.get('error', 'Unknown error')}")
                         
                 except Exception as e:
-                    logger.warning(f"Error processing post {post_id}: {e}")
+                    logger.warning(f"Error processing result for post {post_ids[i]}: {e}")
                     continue
             
             return {
