@@ -4,7 +4,10 @@ import type React from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Star, BarChart2, Users, Lightbulb, AlertTriangle, FileText, MessageCircle, Database, LinkIcon } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import Image from "next/image"
+import redditLogo from "@/app/images/redditlogo.png"
+import googleSheetsLogo from "@/app/images/googlesheetslogo.png"
 
 interface StructuredResultsDisplayProps {
   results: {
@@ -103,7 +106,17 @@ const StarRating = ({ rating, maxRating = 5 }: { rating: number; maxRating?: num
 
 // Difficulty Progress Bar
 const DifficultyBar = ({ rating, maxRating = 10 }: { rating: number; maxRating?: number }) => {
-  const percentage = (rating / maxRating) * 100
+  const [animatedWidth, setAnimatedWidth] = useState(0)
+  const targetPercentage = (rating / maxRating) * 100
+  
+  useEffect(() => {
+    // Start animation after component mounts
+    const timer = setTimeout(() => {
+      setAnimatedWidth(targetPercentage)
+    }, 100) // Small delay to ensure smooth animation start
+    
+    return () => clearTimeout(timer)
+  }, [targetPercentage])
   
   return (
     <div className="w-full">
@@ -113,8 +126,8 @@ const DifficultyBar = ({ rating, maxRating = 10 }: { rating: number; maxRating?:
       </div>
       <div className="w-full bg-white/20 rounded-full h-2">
         <div 
-          className="bg-gradient-to-r from-green-400 to-red-400 h-2 rounded-full transition-all duration-300"
-          style={{ width: `${percentage}%` }}
+          className="bg-gradient-to-r from-green-400 to-red-400 h-2 rounded-full transition-all duration-1000 ease-out"
+          style={{ width: `${animatedWidth}%` }}
         />
       </div>
     </div>
@@ -293,6 +306,65 @@ const filterRelevantPosts = (posts: any[]) => {
     .slice(0, 10) // Top 10 most relevant posts
 }
 
+// Add this helper function before the main component
+const parseUCRDatabaseData = (rawData: string) => {
+  const lines = rawData.split('\n').filter(line => line.trim())
+  const result = {
+    courseCode: '',
+    overallDifficulty: '',
+    reviews: [] as Array<{
+      reviewNumber: string
+      date: string
+      difficulty: string
+      comments: string
+    }>
+  }
+
+  let currentReview: any = {}
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim()
+    
+    if (trimmedLine.includes('UCR Class Difficulty Database -')) {
+      result.courseCode = trimmedLine.split('- ')[1] || ''
+    } else if (trimmedLine.includes('Overall Average Difficulty:')) {
+      result.overallDifficulty = trimmedLine.split(': ')[1] || ''
+    } else if (trimmedLine.startsWith('Review ') && trimmedLine.includes(':')) {
+      // Save previous review if exists
+      if (currentReview.reviewNumber) {
+        result.reviews.push({ ...currentReview })
+      }
+      // Start new review
+      currentReview = {
+        reviewNumber: trimmedLine.replace(':', ''),
+        date: '',
+        difficulty: '',
+        comments: ''
+      }
+    } else if (trimmedLine.startsWith('Date:')) {
+      currentReview.date = trimmedLine.replace('Date: ', '')
+    } else if (trimmedLine.startsWith('Individual Difficulty:')) {
+      currentReview.difficulty = trimmedLine.replace('Individual Difficulty: ', '')
+    } else if (trimmedLine.startsWith('Comments:')) {
+      currentReview.comments = trimmedLine.replace('Comments: ', '')
+    }
+  }
+  
+  // Don't forget the last review
+  if (currentReview.reviewNumber) {
+    result.reviews.push(currentReview)
+  }
+  
+  // Sort reviews by date (most recent first)
+  result.reviews.sort((a, b) => {
+    const dateA = new Date(a.date)
+    const dateB = new Date(b.date)
+    return dateB.getTime() - dateA.getTime()
+  })
+  
+  return result
+}
+
 export function StructuredResultsDisplay({ results, onReset }: StructuredResultsDisplayProps) {
   const [activeTab, setActiveTab] = useState<string>("sentiment")
 
@@ -308,7 +380,7 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
     { id: "pitfalls", label: "Common Pitfalls", icon: AlertTriangle },
     { id: "grades", label: "Grade Distribution", icon: FileText },
     { id: "reddit", label: "Relevant Reddit Posts", icon: MessageCircle },
-    { id: "database", label: "Original UCR Class Difficulty Database Info", icon: Database },
+    { id: "database", label: "UCR Class Difficulty Database Info", icon: Database },
   ]
 
   return (
@@ -326,10 +398,16 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
           </CardTitle>
           <div className="text-sm text-white/60 flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
             {results.analysis_metadata?.total_posts_analyzed && (
-              <span>📝 {results.analysis_metadata.total_posts_analyzed} posts analyzed</span>
+              <span className="flex items-center gap-2">
+                <Image src={redditLogo} alt="Reddit" width={20} height={20} className="object-contain" />
+                {results.analysis_metadata.total_posts_analyzed} Reddit posts analyzed
+              </span>
             )}
             {results.analysis_metadata?.ucr_database_included && (
-              <span>🏛️ UCR Database included</span>
+              <span className="flex items-center gap-2">
+                <Image src={googleSheetsLogo} alt="Google Sheets" width={16} height={16} className="object-contain" />
+                UCR Database included
+              </span>
             )}
           </div>
         </CardHeader>
@@ -339,17 +417,33 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
       <div className="flex flex-wrap gap-2 bg-white/10 p-1 rounded-lg backdrop-blur-xl">
         {tabs.map((tab) => {
           const Icon = tab.icon
+          const isDatabase = tab.id === "database"
+          const isReddit = tab.id === "reddit"
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                activeTab === tab.id
+                isDatabase
+                  ? activeTab === tab.id
+                    ? "bg-[#0B6B3A] text-white shadow-lg" // Even darker Google Sheets green when active
+                    : "bg-[#0D7C47] text-white shadow-md" // Darker Google Sheets green for better logo visibility
+                  : isReddit
+                  ? activeTab === tab.id
+                    ? "bg-[#CC4125] text-white shadow-lg" // Darker Reddit orange when active
+                    : "bg-[#FF4500] text-white shadow-md" // Default Reddit orange
+                  : activeTab === tab.id
                   ? "bg-white/20 text-white shadow-lg"
                   : "text-white/70 hover:text-white hover:bg-white/10"
               }`}
             >
-              <Icon className="mr-2 h-4 w-4" />
+              {isReddit ? (
+                <Image src={redditLogo} alt="Reddit" width={20} height={20} className="mr-2 object-contain" />
+              ) : isDatabase ? (
+                <Image src={googleSheetsLogo} alt="Google Sheets" width={16} height={16} className="mr-2 object-contain" />
+              ) : (
+                <Icon className="mr-2 h-4 w-4" />
+              )}
               {tab.label}
             </button>
           )
@@ -521,9 +615,6 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                          <MessageCircle className="h-3 w-3" />
                          {postData.post.num_comments}
                        </span>
-                       <span className="bg-green-500/20 text-green-300 px-2 py-1 rounded text-xs">
-                         Relevance: {postData.relevanceScore}
-                       </span>
                      </div>
                    </div>
                    
@@ -578,13 +669,102 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
          {/* Database Tab */}
          {activeTab === "database" && results.raw_data?.ucr_database && (
            <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
-             <h3 className="text-xl font-bold text-white mb-4">Original UCR Class Difficulty Database Info</h3>
+             <h3 className="text-xl font-bold text-white mb-4">UCR Class Difficulty Database</h3>
              <p className="text-white/70 text-sm mb-6">
-               Raw student reviews from the UCR class difficulty spreadsheet
+               Student reviews from the UCR class difficulty spreadsheet
              </p>
-             <div className="bg-white/5 rounded-lg p-4 font-mono text-sm text-white/80 whitespace-pre-wrap max-h-96 overflow-y-auto border border-white/10">
-               {results.raw_data.ucr_database}
+             
+             {(() => {
+               const parsedData = parseUCRDatabaseData(results.raw_data.ucr_database)
+               
+               return (
+                 <div className="space-y-6">
+                   {/* Course Header */}
+                   <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-lg p-4">
+                     <div className="flex items-center justify-between">
+                       <div>
+                         <h4 className="text-2xl font-bold text-white">{parsedData.courseCode}</h4>
+                         <p className="text-white/70">Course Analysis</p>
+                       </div>
+                       <div className="text-right">
+                         <p className="text-sm text-white/60">Overall Average Difficulty</p>
+                         <p className="text-3xl font-bold text-orange-300">{parsedData.overallDifficulty}</p>
+                       </div>
+                     </div>
+                   </div>
+
+                   {/* Reviews Table */}
+                   <div className="bg-white/5 rounded-lg border border-white/10 overflow-hidden">
+                     {/* Table Header */}
+                     <div className="bg-white/10 border-b border-white/10 p-4">
+                       <div className="grid grid-cols-12 gap-4 text-sm font-semibold text-white">
+                         <div className="col-span-1">#</div>
+                         <div className="col-span-2">Date</div>
+                         <div className="col-span-2">Difficulty</div>
+                         <div className="col-span-7">Student Comments</div>
+                       </div>
+                     </div>
+                     
+                     {/* Table Body */}
+                     <div className="max-h-96 overflow-y-auto">
+                       {parsedData.reviews.map((review, idx) => (
+                         <div 
+                           key={idx} 
+                           className={`grid grid-cols-12 gap-4 p-4 border-b border-white/5 hover:bg-white/5 transition-colors ${
+                             idx % 2 === 0 ? 'bg-white/2' : 'bg-transparent'
+                           }`}
+                         >
+                           <div className="col-span-1 text-white/60 text-sm font-mono">
+                             {review.reviewNumber.replace('Review ', '')}
+                           </div>
+                           <div className="col-span-2 text-white/80 text-sm">
+                             {review.date}
+                           </div>
+                           <div className="col-span-2">
+                             <div className="flex items-center gap-2">
+                               <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                 review.difficulty.includes('/10') 
+                                   ? parseInt(review.difficulty) <= 3 
+                                     ? 'bg-green-500/20 text-green-300' 
+                                     : parseInt(review.difficulty) <= 6 
+                                     ? 'bg-yellow-500/20 text-yellow-300'
+                                     : 'bg-red-500/20 text-red-300'
+                                   : 'bg-gray-500/20 text-gray-300'
+                               }`}>
+                                 {review.difficulty}
+                               </span>
+                             </div>
+                           </div>
+                           <div className="col-span-7 text-white/90 text-sm leading-relaxed">
+                             {review.comments}
+                           </div>
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                   
+                   {/* Summary Stats */}
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
+                       <p className="text-2xl font-bold text-blue-300">{parsedData.reviews.length}</p>
+                       <p className="text-white/60 text-sm">Total Reviews</p>
+                     </div>
+                     <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
+                       <p className="text-2xl font-bold text-green-300">
+                         {parsedData.reviews.filter(r => r.difficulty.includes('/10') && parseInt(r.difficulty) <= 3).length}
+                       </p>
+                       <p className="text-white/60 text-sm">Easy (1-3/10)</p>
+                     </div>
+                     <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
+                       <p className="text-2xl font-bold text-red-300">
+                         {parsedData.reviews.filter(r => r.difficulty.includes('/10') && parseInt(r.difficulty) >= 7).length}
+                       </p>
+                       <p className="text-white/60 text-sm">Hard (7-10/10)</p>
+                     </div>
+                   </div>
              </div>
+               )
+             })()}
            </Card>
          )}
        </div>
