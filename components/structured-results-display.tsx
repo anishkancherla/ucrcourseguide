@@ -411,45 +411,76 @@ const GradeDistributionRadar = ({ gradeText, animate }: { gradeText: string; ani
   // Parse the grade distribution text to extract components and weights
   const parseGradeDistribution = (text: string) => {
     const components = []
+    const lowerText = text.toLowerCase()
     
     // Common grade components with estimated weights based on text analysis
-    if (text.toLowerCase().includes('quiz')) {
-      const weight = text.toLowerCase().includes('mostly') || text.toLowerCase().includes('primarily') ? 85 : 70
+    if (lowerText.includes('quiz')) {
+      const weight = lowerText.includes('mostly') || lowerText.includes('primarily') ? 85 : 
+                    lowerText.includes('few') || lowerText.includes('minimal') ? 25 : 45
       components.push({ subject: 'Quizzes', value: weight, fullMark: 100 })
     }
     
-    if (text.toLowerCase().includes('participation')) {
-      const weight = text.toLowerCase().includes('minimal') ? 40 : 65
+    if (lowerText.includes('participation')) {
+      const weight = lowerText.includes('minimal') || lowerText.includes('no participation') ? 15 : 
+                    lowerText.includes('heavy') || lowerText.includes('important') ? 40 : 25
       components.push({ subject: 'Participation', value: weight, fullMark: 100 })
     }
     
-    if (text.toLowerCase().includes('project')) {
-      const weight = text.toLowerCase().includes('heavy') ? 90 : 75
+    if (lowerText.includes('project')) {
+      const weight = lowerText.includes('heavy') || lowerText.includes('major') ? 85 : 
+                    lowerText.includes('small') || lowerText.includes('minor') ? 35 : 60
       components.push({ subject: 'Projects', value: weight, fullMark: 100 })
     }
     
-    if (text.toLowerCase().includes('research')) {
-      components.push({ subject: 'Research', value: 60, fullMark: 100 })
+    if (lowerText.includes('research')) {
+      const weight = lowerText.includes('extensive') || lowerText.includes('major') ? 70 : 45
+      components.push({ subject: 'Research', value: weight, fullMark: 100 })
     }
     
-    if (text.toLowerCase().includes('exam')) {
-      const weight = text.toLowerCase().includes('minimal') || text.toLowerCase().includes('no heavy') ? 25 : 80
+    if (lowerText.includes('exam') || lowerText.includes('test') || lowerText.includes('midterm') || lowerText.includes('final')) {
+      const weight = lowerText.includes('minimal') || lowerText.includes('no exam') || lowerText.includes('no heavy') ? 20 : 
+                    lowerText.includes('heavy') || lowerText.includes('mostly') ? 90 : 65
       components.push({ subject: 'Exams', value: weight, fullMark: 100 })
     }
     
-    if (text.toLowerCase().includes('homework') || text.toLowerCase().includes('assignment')) {
-      const weight = text.toLowerCase().includes('heavy') ? 85 : 55
+    if (lowerText.includes('homework') || lowerText.includes('assignment')) {
+      const weight = lowerText.includes('heavy') || lowerText.includes('lots') ? 80 : 
+                    lowerText.includes('minimal') || lowerText.includes('few') ? 30 : 50
       components.push({ subject: 'Homework', value: weight, fullMark: 100 })
     }
     
-    // Add default components if none found
+    // Check for attendance/lab components
+    if (lowerText.includes('attendance') || lowerText.includes('lab')) {
+      const weight = lowerText.includes('mandatory') || lowerText.includes('required') ? 30 : 20
+      components.push({ subject: 'Attendance/Lab', value: weight, fullMark: 100 })
+    }
+    
+    // Add default components with more varied values if none found
     if (components.length === 0) {
       components.push(
-        { subject: 'Assignments', value: 70, fullMark: 100 },
-        { subject: 'Participation', value: 50, fullMark: 100 },
-        { subject: 'Exams', value: 60, fullMark: 100 },
-        { subject: 'Projects', value: 40, fullMark: 100 }
+        { subject: 'Assignments', value: 55, fullMark: 100 },
+        { subject: 'Participation', value: 20, fullMark: 100 },
+        { subject: 'Exams', value: 80, fullMark: 100 },
+        { subject: 'Projects', value: 35, fullMark: 100 },
+        { subject: 'Quizzes', value: 40, fullMark: 100 }
       )
+    }
+    
+    // Ensure we have at least 3 components for a good radar chart
+    if (components.length < 3) {
+      const existingSubjects = components.map(c => c.subject)
+      const additionalComponents = [
+        { subject: 'Homework', value: 45, fullMark: 100 },
+        { subject: 'Participation', value: 25, fullMark: 100 },
+        { subject: 'Final Exam', value: 75, fullMark: 100 },
+        { subject: 'Attendance', value: 15, fullMark: 100 }
+      ]
+      
+      for (const comp of additionalComponents) {
+        if (!existingSubjects.includes(comp.subject) && components.length < 5) {
+          components.push(comp)
+        }
+      }
     }
     
     return components
