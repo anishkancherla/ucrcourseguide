@@ -55,7 +55,7 @@ async def search_course_info(
             raise HTTPException(status_code=400, detail="Keyword cannot be empty")
         
         # search reddit using our service
-        results = reddit_service.search_course_info(keyword.strip(), limit)
+        results = await reddit_service.search_course_info(keyword.strip(), limit)
         
         return {
             "success": True,
@@ -77,7 +77,7 @@ async def get_post_comments(
     try:
         logger.info(f"Getting comments for post: {post_id}")
         
-        comments = reddit_service.get_post_comments(post_id, limit)
+        comments = await reddit_service.get_post_comments(post_id, limit)
         
         return {
             "success": True,
@@ -94,13 +94,11 @@ async def get_post_comments(
 async def health_check():
     """check if reddit api is working"""
     try:
-        # test reddit connection
-        is_readonly = reddit_service.reddit.read_only
-        
+        # Simple health check without Reddit API call
         return {
             "status": "healthy",
-            "reddit_connection": "connected",
-            "reddit_readonly": is_readonly,
+            "reddit_connection": "ready",
+            "reddit_readonly": True,  # We're always in read-only mode
             "message": "All systems operational"
         }
         
@@ -124,7 +122,7 @@ async def get_full_post_for_ai(
     try:
         logger.info(f"Getting full content for AI analysis: {post_id}")
         
-        full_content = reddit_service.get_full_post_content_for_ai(post_id, max_comments)
+        full_content = await reddit_service.get_full_post_content_for_ai(post_id, max_comments)
         
         return {
             "success": True,
@@ -150,7 +148,7 @@ async def get_multiple_posts_for_ai(
         if len(post_ids) > 100:
             raise HTTPException(status_code=400, detail="Maximum 100 posts allowed per request")
         
-        full_content = reddit_service.get_multiple_posts_for_ai(post_ids, max_comments_per_post)
+        full_content = await reddit_service.get_multiple_posts_for_ai(post_ids, max_comments_per_post)
         
         return {
             "success": True,
@@ -177,7 +175,7 @@ async def get_structured_course_analysis(
             raise HTTPException(status_code=400, detail="Course keyword cannot be empty")
         
         # Same data gathering as regular endpoint
-        search_results = reddit_service.search_course_info(keyword.strip(), max_posts)
+        search_results = await reddit_service.search_course_info(keyword.strip(), max_posts)
         
         if not search_results or search_results["total_posts"] == 0:
             ucr_data = sheets_service.format_for_ai_analysis(keyword.strip())
@@ -221,7 +219,7 @@ async def get_structured_course_analysis(
             }
         
         post_ids = [post["id"] for post in ucr_posts[:max_posts]]
-        full_content_data = reddit_service.get_multiple_posts_for_ai(post_ids, max_comments_per_post)
+        full_content_data = await reddit_service.get_multiple_posts_for_ai(post_ids, max_comments_per_post)
         
         if not full_content_data["success"]:
             return {
@@ -277,7 +275,7 @@ async def get_complete_course_analysis(
             raise HTTPException(status_code=400, detail="Course keyword cannot be empty")
         
         # step 1: search reddit for posts about this course
-        search_results = reddit_service.search_course_info(keyword.strip(), max_posts)
+        search_results = await reddit_service.search_course_info(keyword.strip(), max_posts)
         
         if not search_results or search_results["total_posts"] == 0:
             # no reddit posts found, try ucr database only
@@ -326,7 +324,7 @@ async def get_complete_course_analysis(
         post_ids = [post["id"] for post in ucr_posts[:max_posts]]
         
         # get full content for ai analysis
-        full_content_data = reddit_service.get_multiple_posts_for_ai(post_ids, max_comments_per_post)
+        full_content_data = await reddit_service.get_multiple_posts_for_ai(post_ids, max_comments_per_post)
         
         if not full_content_data["success"]:
             return {
@@ -427,14 +425,14 @@ async def test_reddit_connection():
     basic test to see if reddit api works
     """
     try:
-        # test basic reddit connection
-        subreddit = reddit_service.reddit.subreddit("ucr")
-        posts = list(subreddit.hot(limit=1))
+        # test basic reddit connection using our service method
+        test_results = await reddit_service.search_course_info("cs010", 1)
         
         return {
             "success": True,
             "message": "Reddit connection working",
-            "test_post_title": posts[0].title if posts else "No posts found"
+            "test_posts_found": test_results["total_posts"] if test_results else 0,
+            "reddit_service": "operational"
         }
         
     except Exception as e:

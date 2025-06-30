@@ -1,4 +1,4 @@
-import praw
+import asyncpraw
 from typing import List, Dict, Any
 from config import config
 import logging
@@ -7,26 +7,36 @@ import re
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class RedditService:
+class AsyncRedditService:
     def __init__(self):
-        """setup reddit connection (read-only)"""
-        try:
-            self.reddit = praw.Reddit(
-                client_id=config.REDDIT_CLIENT_ID,
-                client_secret=config.REDDIT_CLIENT_SECRET,
-                user_agent=config.REDDIT_USER_AGENT
-            )
-            # make sure it works
-            logger.info(f"Reddit instance created. Read-only: {self.reddit.read_only}")
-        except Exception as e:
-            logger.error(f"Failed to initialize Reddit instance: {e}")
-            raise
+        """setup async reddit connection (read-only)"""
+        self.reddit = None
+        self._initialized = False
+        logger.info("AsyncRedditService created - will initialize Reddit instance on first use")
     
-    def search_course_info(self, keyword: str, limit: int = 100) -> Dict[str, Any]:
+    async def _ensure_reddit_initialized(self):
+        """Initialize Reddit instance if not already done"""
+        if not self._initialized:
+            try:
+                self.reddit = asyncpraw.Reddit(
+                    client_id=config.REDDIT_CLIENT_ID,
+                    client_secret=config.REDDIT_CLIENT_SECRET,
+                    user_agent=config.REDDIT_USER_AGENT,
+                    check_for_async=False
+                )
+                self._initialized = True
+                logger.info("Async Reddit instance initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize Async Reddit instance: {e}")
+                raise
+    
+    async def search_course_info(self, keyword: str, limit: int = 100) -> Dict[str, Any]:
         """
         search for posts about a course in r/ucr
         """
         try:
+            await self._ensure_reddit_initialized()
+            
             results = {
                 "keyword": keyword,
                 "subreddits": {},
@@ -38,7 +48,7 @@ class RedditService:
             
             for subreddit_name in target_subreddits:
                 logger.info(f"Searching r/{subreddit_name} for: {keyword}")
-                subreddit_posts = self._search_subreddit(subreddit_name, keyword, limit)
+                subreddit_posts = await self._search_subreddit(subreddit_name, keyword, limit)
                 results["subreddits"][subreddit_name] = subreddit_posts
                 results["total_posts"] += len(subreddit_posts["posts"])
             
@@ -46,21 +56,21 @@ class RedditService:
             return results
             
         except Exception as e:
-            logger.error(f"Error searching for item flaws: {e}")
+            logger.error(f"Error searching for course info: {e}")
             raise
     
-    def _search_subreddit(self, subreddit_name: str, keyword: str, limit: int) -> Dict[str, Any]:
+    async def _search_subreddit(self, subreddit_name: str, keyword: str, limit: int) -> Dict[str, Any]:
         """
         search a specific subreddit for mentions of the keyword
         """
         try:
-            subreddit = self.reddit.subreddit(subreddit_name)
+            subreddit = await self.reddit.subreddit(subreddit_name)
             
             # search the subreddit
             search_results = subreddit.search(keyword, sort="relevance", time_filter="all", limit=limit)
             
             posts = []
-            for submission in search_results:
+            async for submission in search_results:
                 try:
                     # get basic info from each post
                     post_data = {
@@ -97,13 +107,14 @@ class RedditService:
                 "error": str(e)
             }
     
-    def get_post_comments(self, post_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+    async def get_post_comments(self, post_id: str, limit: int = 50) -> List[Dict[str, Any]]:
         """
         get comments from a specific post
         """
         try:
-            submission = self.reddit.submission(id=post_id)
-            submission.comments.replace_more(limit=0)  # remove "more comments" objects
+            await self._ensure_reddit_initialized()
+            submission = await self.reddit.submission(id=post_id)
+            await submission.comments.replace_more(limit=0)  # remove "more comments" objects
             
             comments = []
             for comment in submission.comments.list()[:limit]:
@@ -127,13 +138,14 @@ class RedditService:
             logger.error(f"Error getting comments for post {post_id}: {e}")
             return []
     
-    def get_full_post_content_for_ai(self, post_id: str, max_comments: int = 100) -> Dict[str, Any]:
+    async def get_full_post_content_for_ai(self, post_id: str, max_comments: int = 100) -> Dict[str, Any]:
         """
         get full post content and comments for ai analysis (no text limits)
         """
         try:
-            submission = self.reddit.submission(id=post_id)
-            submission.comments.replace_more(limit=0)
+            await self._ensure_reddit_initialized()
+            submission = await self.reddit.submission(id=post_id)
+            await submission.comments.replace_more(limit=0)
             
             # get full post content (no truncation for ai)
             post_content = {
@@ -183,18 +195,19 @@ class RedditService:
                 "comments": []
             }
     
-    def get_multiple_posts_for_ai(self, post_ids: List[str], max_comments_per_post: int = 50) -> Dict[str, Any]:
+    async def get_multiple_posts_for_ai(self, post_ids: List[str], max_comments_per_post: int = 50) -> Dict[str, Any]:
         """
         get full content from multiple posts for ai analysis
         """
         try:
+            await self._ensure_reddit_initialized()
             logger.info(f"Getting full content for {len(post_ids)} posts with max {max_comments_per_post} comments each")
             
             posts_data = []
             
             for post_id in post_ids:
                 try:
-                    full_post_data = self.get_full_post_content_for_ai(post_id, max_comments_per_post)
+                    full_post_data = await self.get_full_post_content_for_ai(post_id, max_comments_per_post)
                     
                     if full_post_data["success"]:
                         posts_data.append({
@@ -318,5 +331,10 @@ class RedditService:
         logger.info(f"Filtered to {len(filtered_posts)} posts that are actually about '{search_keyword}'")
         return filtered_posts
 
+    async def close(self):
+        """Close the async reddit session"""
+        if self.reddit and self._initialized:
+            await self.reddit.close()
+
 # create a global instance
-reddit_service = RedditService() 
+reddit_service = AsyncRedditService() 
