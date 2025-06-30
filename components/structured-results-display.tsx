@@ -772,7 +772,7 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
         {/* Professors Tab */}
         {activeTab === "professors" && data.professors && (
           <LiquidGlassContainer variant="default" disableInteractive={true} className="p-6">
-            <h3 className="text-xl font-bold text-white mb-4">Professors & What Students Say</h3>
+            <h3 className="text-xl font-bold text-white mb-4">Frequent Instructors & Student Reviews</h3>
             <div className="grid gap-4">
               {data.professors
                 .sort((a, b) => b.rating - a.rating) // Sort by rating, highest first
@@ -946,7 +946,7 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
           <LiquidGlassContainer variant="default" disableInteractive={true} className="p-6">
             <h3 className="text-xl font-bold text-white mb-4">Relevant Reddit Posts</h3>
             <p className="text-white/70 text-sm mb-6">
-              Pre-filtered posts where this course is the main topic, prioritized by recency and student engagement
+              Curated posts with this course as the primary subject, sorted by recency and student engagement
             </p>
             <div className="space-y-4">
               {prioritizeRelevantPosts(results.raw_data.posts).map((postData: any, idx: number) => (

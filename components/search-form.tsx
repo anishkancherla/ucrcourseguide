@@ -38,16 +38,25 @@ export function SearchForm({ onSearch }: SearchFormProps) {
         <div className="space-y-4">
           <h1 className="text-4xl font-diatype-bold tracking-tight md:text-5xl">UCR Course Guide</h1>
           <p className="max-w-lg text-lg text-white/80 leading-relaxed">
-            Enter a course ID or name to discover student insights and experiences, leveraging community knowledge from r/ucr and the{" "}
+            Type any valid UCR course ID to generate a comprehensive course guide with workload, difficulty, professor ratings, study advice, and more. We scan every relevant post on{" "}
+            <a 
+              href="https://www.reddit.com/r/ucr/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-white transition-colors"
+            >
+              r/ucr
+            </a>
+            {" "}and the{" "}
             <a 
               href="https://docs.google.com/spreadsheets/d/1qiy_Oi8aFiPmL4QSTR3zHe74kmvc6e_159L1mAUUlU0/edit?gid=0#gid=0"
               target="_blank"
               rel="noopener noreferrer"
               className="underline hover:text-white transition-colors"
             >
-              UCR class difficulty database
+              Class Difficulty Database
             </a>
-            .
+            {" "}to extract essential insights.
           </p>
         </div>
       </div>

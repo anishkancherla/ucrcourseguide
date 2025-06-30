@@ -319,7 +319,7 @@ One-sentence vibe (e.g., "Mostly positive but time-consuming").
 – Rank: *Easy / Moderate / Hard / Very Hard*  
 – 2-4 bullet points explaining why (use quotes only for direct quotes, no quotes for general observations).
 
-#### Professors & What Students Say
+#### Frequent Instructors & Student Reviews
 | Professor | ★ Rating | All Available Reviews<sup>†</sup> |
 |-----------|---------|-------------------------------------|
 | Name      | ★★☆☆☆   | 1. 📊 2024-11-15 – "Poor teaching, changes things last minute."<br>2. 👽 2025-03-02 – "Helpful in office hours but lectures unclear."<br>3. 📊 2024-09-20 – "Very strict but fair if you put in effort."<br>4. 👽 2024-12-01 – "Difficult class but learned a lot." |

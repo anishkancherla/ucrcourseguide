@@ -93,7 +93,7 @@ const parseMarkdownSections = (markdownText: string | undefined) => {
 const sectionIcons: { [key: string]: FC<React.ComponentProps<"svg">> } = {
   "Overall Sentiment": Star,
   Difficulty: BarChart2,
-  "Professors & What Students Say": Users,
+  "Frequent Instructors & Student Reviews": Users,
   "Advice & Tips for Success": Lightbulb,
   "Common Pitfalls": AlertTriangle,
   "Grade Distribution Perception": FileText,
