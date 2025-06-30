@@ -137,9 +137,9 @@ const DifficultyBar = ({ rating, maxRating = 10 }: { rating: number; maxRating?:
 // Source Icon Component
 const SourceIcon = ({ source }: { source: string }) => {
   if (source === 'database') {
-    return <span className="text-blue-400">🏛️</span> // You can change this icon
+    return <Image src={googleSheetsLogo} alt="Google Sheets" width={16} height={16} className="object-contain" />
   }
-  return <span className="text-orange-400">👽</span> // You can change this icon
+  return <Image src={redditLogo} alt="Reddit" width={16} height={16} className="object-contain" />
 }
 
 // Professor Card Component
@@ -400,7 +400,10 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
             {results.analysis_metadata?.total_posts_analyzed && (
               <span className="flex items-center gap-2">
                 <Image src={redditLogo} alt="Reddit" width={20} height={20} className="object-contain" />
-                {results.analysis_metadata.total_posts_analyzed} Reddit posts analyzed
+                {results.analysis_metadata.total_posts_analyzed} Reddit posts
+                {results.analysis_metadata?.total_comments_analyzed && 
+                  ` and ${results.analysis_metadata.total_comments_analyzed} comments`
+                } analyzed
               </span>
             )}
             {results.analysis_metadata?.ucr_database_included && (
@@ -462,15 +465,15 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
               <div className="space-y-3">
                 <h4 className="text-lg font-semibold text-white">Workload & Time Commitment</h4>
                 <div className="grid md:grid-cols-3 gap-4">
-                  <div className="bg-white/5 p-3 rounded">
+                  <div className="bg-white/5 p-3 rounded hover:bg-white/10 transition-all duration-300 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-500">
                     <p className="text-sm text-white/70">Hours per week</p>
                     <p className="text-white font-medium">{data.overall_sentiment.workload.hours_per_week}</p>
                   </div>
-                  <div className="bg-white/5 p-3 rounded">
+                  <div className="bg-white/5 p-3 rounded hover:bg-white/10 transition-all duration-300 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-600">
                     <p className="text-sm text-white/70">Assignments</p>
                     <p className="text-white font-medium">{data.overall_sentiment.workload.assignments}</p>
                   </div>
-                  <div className="bg-white/5 p-3 rounded">
+                  <div className="bg-white/5 p-3 rounded hover:bg-white/10 transition-all duration-300 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-700">
                     <p className="text-sm text-white/70">Time commitment</p>
                     <p className="text-white font-medium">{data.overall_sentiment.workload.time_commitment}</p>
                   </div>
@@ -509,9 +512,6 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
         {activeTab === "professors" && data.professors && (
           <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
             <h3 className="text-xl font-bold text-white mb-4">Professors & What Students Say</h3>
-            <p className="text-white/70 text-sm mb-6">
-              Sorted by highest to lowest rating
-            </p>
             <div className="grid gap-4">
               {data.professors
                 .sort((a, b) => b.rating - a.rating) // Sort by rating, highest first
@@ -547,7 +547,7 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                   <ul className="space-y-2">
                     {data.advice.resources.map((resource, idx) => (
                       <li key={idx} className="text-white/80 flex items-start">
-                        <span className="text-purple-400 mr-2">📚</span>
+                        <span className="text-purple-400 mr-2">•</span>
                         {resource}
                       </li>
                     ))}
@@ -621,7 +621,7 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                    {/* Post Date and Categories */}
                    <div className="flex items-center gap-4 mb-3">
                      <span className="text-xs text-white/60 flex items-center gap-1">
-                       📅 {postData.formattedDate}
+                       {postData.formattedDate}
                        {postData.daysSince <= 30 && (
                          <span className="bg-green-500/20 text-green-300 px-2 py-1 rounded text-xs ml-2">
                            Recent
@@ -634,7 +634,7 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                            key={catIdx}
                            className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded flex items-center gap-1"
                          >
-                           {category.icon} {category.label}
+                           {category.label}
                          </span>
                        ))}
                      </div>
@@ -671,7 +671,15 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
            <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
              <h3 className="text-xl font-bold text-white mb-4">UCR Class Difficulty Database</h3>
              <p className="text-white/70 text-sm mb-6">
-               Student reviews from the UCR class difficulty spreadsheet
+               Student reviews from the{' '}
+               <a 
+                 href="https://docs.google.com/spreadsheets/d/1qiy_Oi8aFiPmL4QSTR3zHe74kmvc6e_159L1mAUUlU0/edit?usp=sharing" 
+                 target="_blank" 
+                 rel="noopener noreferrer"
+                 className="underline hover:text-white transition-colors"
+               >
+                 UCR class difficulty spreadsheet
+               </a>
              </p>
              
              {(() => {
@@ -688,7 +696,17 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                        </div>
                        <div className="text-right">
                          <p className="text-sm text-white/60">Overall Average Difficulty</p>
-                         <p className="text-3xl font-bold text-orange-300">{parsedData.overallDifficulty}</p>
+                         <p className={`text-3xl font-bold ${
+                           parsedData.overallDifficulty.includes('/10')
+                             ? parseFloat(parsedData.overallDifficulty) <= 3
+                               ? 'text-green-300'
+                               : parseFloat(parsedData.overallDifficulty) <= 6
+                               ? 'text-yellow-300'
+                               : 'text-red-300'
+                             : 'text-orange-300'
+                         }`}>
+                           {parsedData.overallDifficulty}
+                         </p>
                        </div>
                      </div>
                    </div>
