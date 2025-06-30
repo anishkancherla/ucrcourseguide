@@ -2,6 +2,8 @@
 
 import type React from "react"
 import { Button } from "@/components/ui/button"
+import { LiquidGlassButton } from "@/components/ui/liquid-glass-button"
+import { LiquidGlassContainer } from "@/components/ui/liquid-glass-container"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Star, BarChart2, Users, Lightbulb, AlertTriangle, FileText, MessageCircle, Database, LinkIcon } from "lucide-react"
 import { useState, useEffect } from "react"
@@ -184,7 +186,7 @@ const SourceIcon = ({ source }: { source: string }) => {
 // Professor Card Component
 const ProfessorCard = ({ professor, animate }: { professor: any; animate: boolean }) => {
   return (
-    <Card className="bg-white/10 backdrop-blur-sm border-white/20 p-4 hover:bg-white/15 transition-all">
+    <LiquidGlassContainer variant="subtle" disableInteractive={true} className="p-4">
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-lg font-semibold text-white">{professor.name}</h4>
         <StarRating rating={professor.rating} maxRating={professor.max_rating} animate={animate} />
@@ -200,18 +202,17 @@ const ProfessorCard = ({ professor, animate }: { professor: any; animate: boolea
             <p>"{review.text}"</p>
           </div>
         ))}
+        
+        {professor.minority_opinions && professor.minority_opinions.length > 0 && (
+          <div className="mt-3 p-2 bg-orange-500/10 border border-orange-500/20 rounded">
+            <p className="text-xs text-orange-300 font-medium mb-1">Alternative perspectives:</p>
+            {professor.minority_opinions.map((opinion: string, idx: number) => (
+              <p key={idx} className="text-xs text-white/70">• {opinion}</p>
+            ))}
+          </div>
+        )}
       </div>
-      
-      {professor.minority_opinions?.length > 0 && (
-        <div className="mt-3 pt-2 border-t border-white/10">
-          {professor.minority_opinions.map((opinion: string, idx: number) => (
-            <p key={idx} className="text-xs text-white/50 italic">
-              *Minority opinion: {opinion}*
-            </p>
-          ))}
-        </div>
-      )}
-    </Card>
+    </LiquidGlassContainer>
   )
 }
 
@@ -618,11 +619,11 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
       </Button>
 
       {/* Course Header */}
-      <Card className="bg-white/20 text-white backdrop-blur-2xl border-white/20 shadow-2xl">
-        <CardHeader>
-          <CardTitle className="flex items-center text-2xl">
+      <LiquidGlassContainer variant="subtle" disableInteractive={true} className="text-white p-6">
+        <div>
+          <h2 className="flex items-center text-2xl font-bold">
             {results.keyword?.toUpperCase()}
-          </CardTitle>
+          </h2>
           <div className="text-sm text-white/60 flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
             {results.analysis_metadata?.total_posts_analyzed && (
               <span className="flex items-center gap-2">
@@ -640,51 +641,56 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
               </span>
             )}
           </div>
-        </CardHeader>
-      </Card>
+        </div>
+      </LiquidGlassContainer>
 
       {/* Tab Navigation */}
-      <div className="flex flex-wrap gap-2 bg-white/10 p-1 rounded-lg backdrop-blur-xl">
-        {tabs.map((tab) => {
-          const Icon = tab.icon
-          const isDatabase = tab.id === "database"
-          const isReddit = tab.id === "reddit"
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                isDatabase
-                  ? activeTab === tab.id
-                    ? "bg-[#0B6B3A] text-white shadow-lg" // Even darker Google Sheets green when active
-                    : "bg-[#0D7C47] text-white shadow-md" // Darker Google Sheets green for better logo visibility
-                  : isReddit
-                  ? activeTab === tab.id
-                    ? "bg-[#CC4125] text-white shadow-lg" // Darker Reddit orange when active
-                    : "bg-[#FF4500] text-white shadow-md" // Default Reddit orange
-                  : activeTab === tab.id
-                  ? "bg-white/20 text-white shadow-lg"
-                  : "text-white/70 hover:text-white hover:bg-white/10"
-              }`}
-            >
-              {isReddit ? (
-                <Image src={redditLogo} alt="Reddit" width={20} height={20} className="mr-2 object-contain" />
-              ) : isDatabase ? (
-                <Image src={googleSheetsLogo} alt="Google Sheets" width={16} height={16} className="mr-2 object-contain" />
-              ) : (
-                <Icon className="mr-2 h-4 w-4" />
-              )}
-              {tab.label}
-            </button>
-          )
-        })}
-      </div>
+      <LiquidGlassContainer variant="subtle" className="p-2">
+        <div className="flex flex-wrap gap-2">
+          {tabs.map((tab) => {
+            const Icon = tab.icon
+            const isDatabase = tab.id === "database"
+            const isReddit = tab.id === "reddit"
+            const isActive = activeTab === tab.id
+            
+            return (
+              <LiquidGlassButton
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                glassIntensity={isActive ? 0.6 : 0.3}
+                className={`flex items-center px-4 py-2 text-sm font-medium transition-all ${
+                  isDatabase
+                    ? isActive
+                      ? "bg-[#0B6B3A]/80 text-white shadow-lg border-[#0B6B3A]/50" 
+                      : "bg-[#0D7C47]/60 text-white shadow-md border-[#0D7C47]/30" 
+                    : isReddit
+                    ? isActive
+                      ? "bg-[#CC4125]/80 text-white shadow-lg border-[#CC4125]/50" 
+                      : "bg-[#FF4500]/60 text-white shadow-md border-[#FF4500]/30" 
+                    : isActive
+                    ? "bg-white/30 text-white shadow-lg border-white/40"
+                    : "bg-white/10 text-white/70 hover:text-white hover:bg-white/20 border-white/20"
+                }`}
+              >
+                {isReddit ? (
+                  <Image src={redditLogo} alt="Reddit" width={20} height={20} className="mr-2 object-contain" />
+                ) : isDatabase ? (
+                  <Image src={googleSheetsLogo} alt="Google Sheets" width={16} height={16} className="mr-2 object-contain" />
+                ) : (
+                  <Icon className="mr-2 h-4 w-4" />
+                )}
+                {tab.label}
+              </LiquidGlassButton>
+            )
+          })}
+        </div>
+      </LiquidGlassContainer>
 
       {/* Tab Content */}
       <div className="space-y-6">
         {/* Overall Sentiment Tab */}
         {activeTab === "sentiment" && data.overall_sentiment && (
-          <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
+          <LiquidGlassContainer variant="default" disableInteractive={true} className="p-6">
             <h3 className="text-xl font-bold text-white mb-4">Overall Sentiment</h3>
             <p className="text-white/90 mb-4 text-lg">{data.overall_sentiment.summary}</p>
             
@@ -719,12 +725,12 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                 </div>
               </div>
             )}
-          </Card>
+          </LiquidGlassContainer>
         )}
 
         {/* Difficulty Tab */}
         {activeTab === "difficulty" && data.difficulty && (
-          <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
+          <LiquidGlassContainer variant="default" disableInteractive={true} className="p-6">
             <h3 className="text-xl font-bold text-white mb-4">Difficulty</h3>
             <div className="space-y-4">
               <div>
@@ -744,12 +750,12 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                 </ul>
               </div>
             </div>
-          </Card>
+          </LiquidGlassContainer>
         )}
 
         {/* Professors Tab */}
         {activeTab === "professors" && data.professors && (
-          <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
+          <LiquidGlassContainer variant="default" disableInteractive={true} className="p-6">
             <h3 className="text-xl font-bold text-white mb-4">Professors & What Students Say</h3>
             <div className="grid gap-4">
               {data.professors
@@ -758,12 +764,12 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                 <ProfessorCard key={idx} professor={professor} animate={animateProfessors} />
               ))}
             </div>
-          </Card>
+          </LiquidGlassContainer>
         )}
 
         {/* Advice & Tips Tab (with Pitfalls) */}
         {activeTab === "advice" && (data.advice || data.common_pitfalls) && (
-          <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
+          <LiquidGlassContainer variant="default" disableInteractive={true} className="p-6">
             <h3 className="text-xl font-bold text-white mb-4">Advice & Tips for Success</h3>
             <div className="space-y-6">
               {data.advice && (
@@ -818,14 +824,12 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                 </div>
               )}
             </div>
-          </Card>
+          </LiquidGlassContainer>
         )}
-
-
 
         {/* Grade Distribution Tab */}
         {activeTab === "grades" && (
-          <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
+          <LiquidGlassContainer variant="default" disableInteractive={true} className="p-6">
             <h3 className="text-xl font-bold text-white mb-4">Grade Distribution</h3>
             
             {data.grade_distribution ? (
@@ -854,19 +858,19 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                 <p className="text-white/40 text-sm mt-2">Check other tabs for course insights</p>
               </div>
             )}
-          </Card>
+          </LiquidGlassContainer>
         )}
 
         {/* Reddit Posts Tab */}
         {activeTab === "reddit" && results.raw_data?.posts && (
-          <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
+          <LiquidGlassContainer variant="default" disableInteractive={true} className="p-6">
             <h3 className="text-xl font-bold text-white mb-4">Relevant Reddit Posts</h3>
             <p className="text-white/70 text-sm mb-6">
               Pre-filtered posts where this course is the main topic, prioritized by recency and student engagement
             </p>
             <div className="space-y-4">
               {prioritizeRelevantPosts(results.raw_data.posts).map((postData: any, idx: number) => (
-                <Card key={idx} className="bg-white/5 border-white/10 p-4 hover:bg-white/10 transition-all">
+                <LiquidGlassContainer key={idx} variant="subtle" disableInteractive={true} className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <h4 className="text-white font-medium text-lg flex-1 pr-4">
                       <a 
@@ -932,15 +936,15 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                       View on Reddit
                     </a>
                   </div>
-                </Card>
+                </LiquidGlassContainer>
               ))}
             </div>
-          </Card>
+          </LiquidGlassContainer>
         )}
 
         {/* Database Tab */}
         {activeTab === "database" && results.raw_data?.ucr_database && (
-          <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
+          <LiquidGlassContainer variant="default" disableInteractive={true} className="p-6">
             <h3 className="text-xl font-bold text-white mb-4">UCR Class Difficulty Database</h3>
             <p className="text-white/70 text-sm mb-6">
               Student reviews from the{' '}
@@ -1055,7 +1059,7 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                 </div>
               )
             })()}
-          </Card>
+          </LiquidGlassContainer>
         )}
       </div>
     </div>
