@@ -11,9 +11,9 @@ interface SimpleLiquidGlassProps {
 }
 
 const variantStyles = {
-  default: "bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/15 hover:backdrop-blur-lg",
-  subtle: "bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 hover:backdrop-blur-md",
-  intense: "bg-white/15 backdrop-blur-lg border border-white/30 hover:bg-white/20 hover:backdrop-blur-xl"
+  default: "bg-white/10 border border-white/20 hover:bg-white/15 supports-[backdrop-filter]:backdrop-blur-md supports-[backdrop-filter]:hover:backdrop-blur-lg",
+  subtle: "bg-white/5 border border-white/10 hover:bg-white/10 supports-[backdrop-filter]:backdrop-blur-sm supports-[backdrop-filter]:hover:backdrop-blur-md",
+  intense: "bg-white/15 border border-white/30 hover:bg-white/20 supports-[backdrop-filter]:backdrop-blur-lg supports-[backdrop-filter]:hover:backdrop-blur-xl"
 }
 
 export function SimpleLiquidGlass({ 
@@ -47,8 +47,10 @@ export function SimpleLiquidGlass({
       onMouseLeave={() => setIsHovered(false)}
       style={{
         background: isHovered 
-          ? `radial-gradient(circle at ${mousePosition.x}% ${mousePosition.y}%, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.05) 50%, transparent 100%)`
-          : undefined
+          ? `radial-gradient(circle at ${mousePosition.x}% ${mousePosition.y}%, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.02) 100%)`
+          : 'rgba(255,255,255,0.1)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
       }}
     >
       {/* Animated glass effect overlay */}

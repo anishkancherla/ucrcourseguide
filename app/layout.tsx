@@ -40,6 +40,27 @@ export const metadata: Metadata = {
   title: "UCR Course Guide",
 }
 
+// Footer Component
+function Footer() {
+  return (
+    <footer className="relative z-10 mt-auto border-t border-white/10 bg-black/20 backdrop-blur-sm">
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="text-center md:text-left">
+            <p className="text-white/80 text-sm">
+              UCR Course Guide
+            </p>
+          </div>
+          
+          <div className="text-white/60 text-xs">
+            <span>Community-driven insights</span>
+          </div>
+        </div>
+      </div>
+    </footer>
+  )
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -47,7 +68,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={cn(abcDiatype.variable, abcDiatype.className, "bg-background text-foreground")}>{children}</body>
+      <body className={cn(abcDiatype.variable, abcDiatype.className, "bg-background text-foreground flex flex-col min-h-screen")}>
+        <div className="flex-grow">
+          {children}
+        </div>
+        <Footer />
+      </body>
     </html>
   )
 }

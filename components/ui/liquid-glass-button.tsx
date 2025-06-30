@@ -36,9 +36,14 @@ const LiquidGlassButton = React.forwardRef<HTMLButtonElement, LiquidGlassButtonP
       <Button
         ref={ref}
         className={cn(
-          "relative overflow-hidden backdrop-blur-sm transition-all duration-300",
+          "relative overflow-hidden transition-all duration-300",
+          // Safari-friendly fallbacks
           "bg-white/10 hover:bg-white/20 border border-white/20",
           "text-white shadow-lg hover:shadow-xl hover:scale-105",
+          // Enhanced backdrop blur with fallback
+          "backdrop-blur-sm supports-[backdrop-filter]:bg-white/10",
+          // Ensure text contrast
+          "font-medium",
           className
         )}
         variant={variant}
@@ -48,9 +53,13 @@ const LiquidGlassButton = React.forwardRef<HTMLButtonElement, LiquidGlassButtonP
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         style={{
+          // Safari-compatible gradient with fallback
           background: isHovered 
-            ? `radial-gradient(circle at ${mousePosition.x}% ${mousePosition.y}%, rgba(255,255,255,${glassIntensity}) 0%, rgba(255,255,255,0.1) 50%, transparent 100%)`
-            : undefined
+            ? `radial-gradient(circle at ${mousePosition.x}% ${mousePosition.y}%, rgba(255,255,255,${glassIntensity}) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 100%)`
+            : 'rgba(255,255,255,0.1)',
+          // Ensure backdrop filter works across browsers
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
         }}
         {...props}
       >

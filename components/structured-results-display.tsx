@@ -184,6 +184,57 @@ const SourceIcon = ({ source }: { source: string }) => {
   return <Image src={redditLogo} alt="Reddit" width={16} height={16} className="object-contain" />
 }
 
+// Mobile Review Card Component with Expandable Comments
+const MobileReviewCard = ({ review, idx }: { review: any; idx: number }) => {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const shouldTruncate = review.comments.length > 150
+  const displayComment = isExpanded ? review.comments : review.comments.slice(0, 150) + (shouldTruncate ? '...' : '')
+
+  return (
+    <div 
+      className={`p-4 border-b border-white/5 hover:bg-white/5 transition-colors ${
+        idx % 2 === 0 ? 'bg-white/2' : 'bg-transparent'
+      }`}
+    >
+      {/* Header with review number, date, and difficulty */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <span className="text-white/60 text-sm font-mono">
+            #{review.reviewNumber.replace('Review ', '')}
+          </span>
+          <span className="text-white/80 text-sm">
+            {review.date}
+          </span>
+        </div>
+        <span className={`px-2 py-1 rounded text-xs font-semibold ${
+          review.difficulty.includes('/10') 
+            ? parseInt(review.difficulty) <= 3 
+              ? 'bg-green-500/20 text-green-300' 
+              : parseInt(review.difficulty) <= 6 
+              ? 'bg-yellow-500/20 text-yellow-300'
+              : 'bg-red-500/20 text-red-300'
+            : 'bg-gray-500/20 text-gray-300'
+        }`}>
+          {review.difficulty}
+        </span>
+      </div>
+      
+      {/* Comment section */}
+      <div className="text-white/90 text-sm leading-relaxed">
+        <p>{displayComment}</p>
+        {shouldTruncate && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="mt-2 text-blue-300 hover:text-blue-200 text-xs font-medium transition-colors"
+          >
+            {isExpanded ? 'Show less' : 'Read more'}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // Professor Card Component
 const ProfessorCard = ({ professor, animate }: { professor: any; animate: boolean }) => {
   return (
@@ -558,6 +609,10 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
   // Animation state for advice section
   const [animateAdvice, setAnimateAdvice] = useState(false)
 
+  // Check if Reddit data exists and has content
+  const hasRedditData = results?.raw_data?.posts && results.raw_data.posts.length > 0
+  const hasDatabaseData = results?.raw_data?.ucr_database
+
   // Reset and trigger animations when sentiment tab becomes active
   useEffect(() => {
     if (activeTab === "sentiment") {
@@ -642,13 +697,19 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
             {results.keyword?.toUpperCase()}
           </h2>
           <div className="text-sm text-white/60 flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
-            {results.analysis_metadata?.total_posts_analyzed && (
+            {results.analysis_metadata?.total_posts_analyzed !== undefined && (
               <span className="flex items-center gap-2">
                 <Image src={redditLogoWhite} alt="Reddit" width={20} height={20} className="object-contain" />
-                {results.analysis_metadata.total_posts_analyzed} Reddit posts
-                {results.analysis_metadata?.total_comments_analyzed && 
-                  ` and ${results.analysis_metadata.total_comments_analyzed} comments`
-                } analyzed
+                {results.analysis_metadata.total_posts_analyzed > 0 ? (
+                  <>
+                    {results.analysis_metadata.total_posts_analyzed} Reddit posts
+                    {results.analysis_metadata?.total_comments_analyzed && 
+                      ` and ${results.analysis_metadata.total_comments_analyzed} comments`
+                    } analyzed
+                  </>
+                                 ) : (
+                   "No relevant reddit posts found"
+                 )}
               </span>
             )}
             {results.analysis_metadata?.ucr_database_included && (
@@ -670,33 +731,50 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
             const isReddit = tab.id === "reddit"
             const isActive = activeTab === tab.id
             
+            // Check if tab has data
+            const hasData = tab.id === "reddit" ? hasRedditData : 
+                           tab.id === "database" ? hasDatabaseData : 
+                           true // Other tabs always have data if we reach this point
+            
             return (
               <LiquidGlassButton
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                glassIntensity={isActive ? 0.6 : 0.3}
+                onClick={() => hasData && setActiveTab(tab.id)}
+                disabled={!hasData}
+                glassIntensity={isActive ? 0.6 : hasData ? 0.3 : 0.1}
                 className={`flex items-center px-4 py-2 text-sm font-medium transition-all ${
-                  isDatabase
-                    ? isActive
-                      ? "bg-[#0B6B3A]/80 text-white shadow-lg border-[#0B6B3A]/50" 
-                      : "bg-[#0D7C47]/60 text-white shadow-md border-[#0D7C47]/30" 
-                    : isReddit
-                    ? isActive
-                      ? "bg-[#CC4125]/80 text-white shadow-lg border-[#CC4125]/50" 
-                      : "bg-[#FF4500]/60 text-white shadow-md border-[#FF4500]/30" 
+                  !hasData
+                    ? "bg-white/5 text-white/30 cursor-not-allowed border-white/10"
                     : isActive
-                    ? "bg-white/30 text-white shadow-lg border-white/40"
+                    ? isDatabase
+                      ? "bg-[#0B6B3A]/80 text-white shadow-lg border-[#0B6B3A]/50"
+                      : isReddit
+                      ? "bg-[#CC4125]/80 text-white shadow-lg border-[#CC4125]/50"
+                      : "bg-white/30 text-white shadow-lg border-white/40"
                     : "bg-white/10 text-white/70 hover:text-white hover:bg-white/20 border-white/20"
                 }`}
               >
                 {isReddit ? (
-                  <Image src={redditLogo} alt="Reddit" width={20} height={20} className="mr-2 object-contain" />
+                  <Image 
+                    src={redditLogo} 
+                    alt="Reddit" 
+                    width={20} 
+                    height={20} 
+                    className={`mr-2 object-contain ${!hasData ? 'opacity-30' : ''}`} 
+                  />
                 ) : isDatabase ? (
-                  <Image src={googleSheetsLogo} alt="Google Sheets" width={16} height={16} className="mr-2 object-contain" />
+                  <Image 
+                    src={googleSheetsLogo} 
+                    alt="Google Sheets" 
+                    width={16} 
+                    height={16} 
+                    className={`mr-2 object-contain ${!hasData ? 'opacity-30' : ''}`} 
+                  />
                 ) : (
-                  <Icon className="mr-2 h-4 w-4" />
+                  <Icon className={`mr-2 h-4 w-4 ${!hasData ? 'opacity-30' : ''}`} />
                 )}
                 {tab.label}
+                {!hasData && <span className="ml-2 text-xs opacity-60">(No data)</span>}
               </LiquidGlassButton>
             )
           })}
@@ -943,14 +1021,14 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
         )}
 
         {/* Reddit Posts Tab */}
-        {activeTab === "reddit" && results.raw_data?.posts && (
+        {activeTab === "reddit" && hasRedditData && (
           <LiquidGlassContainer variant="default" disableInteractive={true} className="p-6">
             <h3 className="text-xl font-bold text-white mb-4">Relevant Reddit Posts</h3>
             <p className="text-white/70 text-sm mb-6">
               Curated posts with this course as the primary subject, sorted by recency and student engagement
             </p>
             <div className="space-y-4">
-              {prioritizeRelevantPosts(results.raw_data.posts).map((postData: any, idx: number) => (
+              {results.raw_data?.posts ? prioritizeRelevantPosts(results.raw_data.posts).map((postData: any, idx: number) => (
                 <LiquidGlassContainer key={idx} variant="subtle" disableInteractive={true} className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <h4 className="text-white font-medium text-lg flex-1 pr-4">
@@ -1018,13 +1096,29 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                     </a>
                   </div>
                 </LiquidGlassContainer>
-              ))}
+              )) : null}
+            </div>
+          </LiquidGlassContainer>
+        )}
+
+        {/* Reddit Empty State */}
+        {activeTab === "reddit" && !hasRedditData && (
+          <LiquidGlassContainer variant="default" disableInteractive={true} className="p-6">
+            <div className="text-center py-12">
+              <MessageCircle className="h-16 w-16 text-white/30 mx-auto mb-6" />
+              <h3 className="text-xl font-bold text-white mb-3">No Reddit Discussions Found</h3>
+              <p className="text-white/60 mb-4">
+                We couldn't find any relevant discussions about this course on r/UCR.
+              </p>
+              <p className="text-white/40 text-sm">
+                This could mean the course is new, rarely discussed, or uses a different naming convention.
+              </p>
             </div>
           </LiquidGlassContainer>
         )}
 
         {/* Database Tab */}
-        {activeTab === "database" && results.raw_data?.ucr_database && (
+        {activeTab === "database" && hasDatabaseData && (
           <LiquidGlassContainer variant="default" disableInteractive={true} className="p-6">
             <h3 className="text-xl font-bold text-white mb-4">UCR Class Difficulty Database</h3>
             <p className="text-white/70 text-sm mb-6">
@@ -1040,7 +1134,7 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
             </p>
             
             {(() => {
-              const parsedData = parseUCRDatabaseData(results.raw_data.ucr_database)
+              const parsedData = parseUCRDatabaseData(results.raw_data?.ucr_database || '')
               
               return (
                 <div className="space-y-6">
@@ -1070,50 +1164,60 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
 
                   {/* Reviews Table */}
                   <div className="bg-white/5 rounded-lg border border-white/10 overflow-hidden">
-                    {/* Table Header */}
-                    <div className="bg-white/10 border-b border-white/10 p-4">
-                      <div className="grid grid-cols-12 gap-4 text-sm font-semibold text-white">
-                        <div className="col-span-1">#</div>
-                        <div className="col-span-2">Date</div>
-                        <div className="col-span-2">Difficulty</div>
-                        <div className="col-span-7">Student Comments</div>
+                    {/* Desktop Table */}
+                    <div className="hidden md:block">
+                      {/* Table Header */}
+                      <div className="bg-white/10 border-b border-white/10 p-4">
+                        <div className="grid grid-cols-12 gap-4 text-sm font-semibold text-white">
+                          <div className="col-span-1">#</div>
+                          <div className="col-span-2">Date</div>
+                          <div className="col-span-2">Difficulty</div>
+                          <div className="col-span-7">Student Comments</div>
+                        </div>
                       </div>
-                    </div>
-                    
-                    {/* Table Body */}
-                    <div className="max-h-96 overflow-y-auto">
-                      {parsedData.reviews.map((review, idx) => (
-                        <div 
-                          key={idx} 
-                          className={`grid grid-cols-12 gap-4 p-4 border-b border-white/5 hover:bg-white/5 transition-colors ${
-                            idx % 2 === 0 ? 'bg-white/2' : 'bg-transparent'
-                          }`}
-                        >
-                          <div className="col-span-1 text-white/60 text-sm font-mono">
-                            {review.reviewNumber.replace('Review ', '')}
-                          </div>
-                          <div className="col-span-2 text-white/80 text-sm">
-                            {review.date}
-                          </div>
-                          <div className="col-span-2">
-                            <div className="flex items-center gap-2">
-                              <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                                review.difficulty.includes('/10') 
-                                  ? parseInt(review.difficulty) <= 3 
-                                    ? 'bg-green-500/20 text-green-300' 
-                                    : parseInt(review.difficulty) <= 6 
-                                    ? 'bg-yellow-500/20 text-yellow-300'
-                                    : 'bg-red-500/20 text-red-300'
-                                  : 'bg-gray-500/20 text-gray-300'
-                              }`}>
-                                {review.difficulty}
-                              </span>
+                      
+                      {/* Table Body */}
+                      <div className="max-h-96 overflow-y-auto">
+                        {parsedData.reviews.map((review, idx) => (
+                          <div 
+                            key={idx} 
+                            className={`grid grid-cols-12 gap-4 p-4 border-b border-white/5 hover:bg-white/5 transition-colors ${
+                              idx % 2 === 0 ? 'bg-white/2' : 'bg-transparent'
+                            }`}
+                          >
+                            <div className="col-span-1 text-white/60 text-sm font-mono">
+                              {review.reviewNumber.replace('Review ', '')}
+                            </div>
+                            <div className="col-span-2 text-white/80 text-sm">
+                              {review.date}
+                            </div>
+                            <div className="col-span-2">
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                  review.difficulty.includes('/10') 
+                                    ? parseInt(review.difficulty) <= 3 
+                                      ? 'bg-green-500/20 text-green-300' 
+                                      : parseInt(review.difficulty) <= 6 
+                                      ? 'bg-yellow-500/20 text-yellow-300'
+                                      : 'bg-red-500/20 text-red-300'
+                                    : 'bg-gray-500/20 text-gray-300'
+                                }`}>
+                                  {review.difficulty}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="col-span-7 text-white/90 text-sm leading-relaxed">
+                              {review.comments}
                             </div>
                           </div>
-                          <div className="col-span-7 text-white/90 text-sm leading-relaxed">
-                            {review.comments}
-                          </div>
-                        </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Mobile Cards */}
+                    <div className="md:hidden max-h-96 overflow-y-auto">
+                      {parsedData.reviews.map((review, idx) => (
+                        <MobileReviewCard key={idx} review={review} idx={idx} />
                       ))}
                     </div>
                   </div>
@@ -1140,6 +1244,22 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                 </div>
               )
             })()}
+          </LiquidGlassContainer>
+        )}
+
+        {/* Database Empty State */}
+        {activeTab === "database" && !hasDatabaseData && (
+          <LiquidGlassContainer variant="default" disableInteractive={true} className="p-6">
+            <div className="text-center py-12">
+              <Database className="h-16 w-16 text-white/30 mx-auto mb-6" />
+              <h3 className="text-xl font-bold text-white mb-3">No Database Information Found</h3>
+              <p className="text-white/60 mb-4">
+                This course was not found in the UCR class difficulty database.
+              </p>
+              <p className="text-white/40 text-sm">
+                The course might be new, have a different code, or not be included in the community spreadsheet yet.
+              </p>
+            </div>
           </LiquidGlassContainer>
         )}
       </div>
