@@ -744,14 +744,14 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                 glassIntensity={isActive ? 0.3 : hasData ? 0.15 : 0.05}
                 className={`flex items-center px-4 py-2 text-sm font-medium transition-all ${
                   !hasData
-                    ? "bg-white/3 text-white/30 cursor-not-allowed border-white/10"
+                    ? "bg-white/3 text-black/30 md:text-white/30 cursor-not-allowed border-white/10"
                     : isActive
                     ? isDatabase
                       ? "bg-[#0B6B3A]/80 text-white shadow-lg border-[#0B6B3A]/50"
                       : isReddit
                       ? "bg-[#CC4125]/80 text-white shadow-lg border-[#CC4125]/50"
-                      : "bg-white/15 text-white shadow-lg border-white/40"
-                    : "bg-white/5 text-white/70 hover:text-white hover:bg-white/10 border-white/20"
+                      : "bg-white/15 text-black md:text-white shadow-lg border-white/40"
+                    : "bg-white/5 text-black/70 md:text-white/70 hover:text-black md:hover:text-white hover:bg-white/10 border-white/20"
                 }`}
               >
                 {isReddit ? (
@@ -771,7 +771,7 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                     className={`mr-2 object-contain ${!hasData ? 'opacity-30' : ''}`} 
                   />
                 ) : (
-                  <Icon className={`mr-2 h-4 w-4 ${!hasData ? 'opacity-30' : ''}`} />
+                  <Icon className={`mr-2 h-4 w-4 ${!hasData ? 'opacity-30' : ''} text-black md:text-white`} />
                 )}
                 {tab.label}
                 {!hasData && <span className="ml-2 text-xs opacity-60">(No data)</span>}

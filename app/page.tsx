@@ -231,7 +231,7 @@ export default function HomePage() {
           <div className={`absolute z-50 ${
             results 
               ? "top-4 right-4 md:top-6 md:right-6" 
-              : "top-6 right-6 md:top-6 md:right-6"
+              : "top-10 right-6 md:top-6 md:right-6"
           }`}>
             <Button variant="ghost" size="icon" className="text-white/80 hover:text-white bg-black/20 backdrop-blur-sm border border-white/20" onClick={handleShare}>
               <Share2 className="h-5 w-5" />
