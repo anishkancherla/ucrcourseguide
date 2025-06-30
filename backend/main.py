@@ -43,7 +43,7 @@ async def root():
 @app.get("/api/search")
 async def search_course_info(
     keyword: str = Query(..., description="Course ID or name to search for"),
-    limit: int = Query(default=50, ge=1, le=100, description="Maximum posts to retrieve")
+    limit: int = Query(default=100, ge=1, le=200, description="Maximum posts to retrieve")
 ) -> Dict[str, Any]:
     """
     search for posts about ucr courses from r/ucr
@@ -69,7 +69,7 @@ async def search_course_info(
 @app.get("/api/post/{post_id}/comments")
 async def get_post_comments(
     post_id: str,
-    limit: int = Query(default=20, ge=1, le=50, description="Maximum comments to retrieve")
+    limit: int = Query(default=50, ge=1, le=100, description="Maximum comments to retrieve")
 ):
     """
     get comments from a specific reddit post
@@ -116,7 +116,7 @@ async def health_check():
 @app.get("/api/post/{post_id}/full-content")
 async def get_full_post_for_ai(
     post_id: str,
-    max_comments: int = Query(default=50, ge=1, le=200, description="Maximum comments to retrieve for AI analysis")
+    max_comments: int = Query(default=100, ge=1, le=300, description="Maximum comments to retrieve for AI analysis")
 ):
     """
     get full post content for ai analysis (no limits on text length)
@@ -138,7 +138,7 @@ async def get_full_post_for_ai(
 @app.post("/api/posts/full-content")
 async def get_multiple_posts_for_ai(
     request: PostIdsRequest,
-    max_comments_per_post: int = Query(default=30, ge=1, le=100, description="Max comments per post")
+    max_comments_per_post: int = Query(default=50, ge=1, le=150, description="Max comments per post")
 ):
     """
     get content from multiple posts for ai analysis
@@ -164,8 +164,8 @@ async def get_multiple_posts_for_ai(
 @app.get("/api/course-analysis-structured")
 async def get_structured_course_analysis(
     keyword: str = Query(..., description="Course ID or name to analyze"),
-    max_posts: int = Query(default=20, ge=1, le=100, description="Maximum posts to analyze"),
-    max_comments_per_post: int = Query(default=30, ge=1, le=100, description="Max comments per post")
+    max_posts: int = Query(default=50, ge=1, le=200, description="Maximum posts to analyze"),
+    max_comments_per_post: int = Query(default=50, ge=1, le=200, description="Max comments per post")
 ):
     """
     🎯 NEW: Returns structured JSON data instead of markdown for custom frontend components
@@ -230,11 +230,15 @@ async def get_structured_course_analysis(
             }
         
         posts_data = full_content_data["data"]
+        
+        # 🎯 FILTER POSTS FOR MAIN TOPIC RELEVANCE (before AI analysis)
+        filtered_posts_data = reddit_service.filter_posts_for_main_topic(posts_data, keyword.strip())
+        
         ucr_database_data = sheets_service.format_for_ai_analysis(keyword.strip())
         
         course_data = {
             "course": keyword.strip(),
-            "posts": posts_data,
+            "posts": filtered_posts_data,  # Use filtered posts for AI analysis
             "ucr_database": ucr_database_data if ucr_database_data else ""
         }
         
@@ -243,11 +247,11 @@ async def get_structured_course_analysis(
         
         return {
             "success": True,
-            "posts_analyzed": len(posts_data),
+            "posts_analyzed": len(filtered_posts_data),
             "ucr_database_included": bool(ucr_database_data),
             "raw_data": {
                 "course": keyword.strip(),
-                "posts": posts_data,
+                "posts": filtered_posts_data,  # Send filtered posts to frontend
                 "ucr_database": ucr_database_data if ucr_database_data else ""
             },
             "analysis": analysis
@@ -260,8 +264,8 @@ async def get_structured_course_analysis(
 @app.get("/api/course-analysis")
 async def get_complete_course_analysis(
     keyword: str = Query(..., description="Course ID or name to analyze"),
-    max_posts: int = Query(default=20, ge=1, le=100, description="Maximum posts to analyze"),
-    max_comments_per_post: int = Query(default=30, ge=1, le=100, description="Max comments per post")
+    max_posts: int = Query(default=50, ge=1, le=200, description="Maximum posts to analyze"),
+    max_comments_per_post: int = Query(default=50, ge=1, le=200, description="Max comments per post")
 ):
     """
     🎯 the main endpoint: search course → get content → get ucr database → ai analysis
@@ -333,26 +337,29 @@ async def get_complete_course_analysis(
         
         posts_data = full_content_data["data"]
         
-        # step 3: get ucr database data
+        # step 3: 🎯 FILTER POSTS FOR MAIN TOPIC RELEVANCE (before AI analysis)
+        filtered_posts_data = reddit_service.filter_posts_for_main_topic(posts_data, keyword.strip())
+        
+        # step 4: get ucr database data
         ucr_database_data = sheets_service.format_for_ai_analysis(keyword.strip())
         
-        # step 4: combine data for ai analysis
+        # step 5: combine data for ai analysis
         course_data = {
             "course": keyword.strip(),
-            "posts": posts_data,
+            "posts": filtered_posts_data,  # Use filtered posts for AI analysis
             "ucr_database": ucr_database_data if ucr_database_data else ""
         }
         
-        # step 5: run ai analysis
+        # step 6: run ai analysis
         ai_analysis = openai_service.analyze_course_discussions(course_data)
         
         return {
             "success": True,
-            "posts_analyzed": len(posts_data),
+            "posts_analyzed": len(filtered_posts_data),
             "ucr_database_included": bool(ucr_database_data),
             "raw_data": {
                 "course": keyword.strip(),
-                "posts": posts_data,
+                "posts": filtered_posts_data,  # Send filtered posts to frontend
                 "ucr_database": ucr_database_data
             },
             "ai_analysis": ai_analysis
@@ -385,7 +392,7 @@ async def test_sheets_data(
             "success": True,
             "course": course.upper(),
             "reviews_count": len(reviews),
-            "reviews": reviews[:5],  # first 5 reviews only
+            "reviews": reviews[:15],  # increased for better professor analysis
             "ai_formatted_preview": ai_formatted_data[:500] if ai_formatted_data else "No data",
             "summary": summary
         }

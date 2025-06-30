@@ -2,6 +2,7 @@ import praw
 from typing import List, Dict, Any
 from config import config
 import logging
+import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ class RedditService:
             logger.error(f"Failed to initialize Reddit instance: {e}")
             raise
     
-    def search_course_info(self, keyword: str, limit: int = 50) -> Dict[str, Any]:
+    def search_course_info(self, keyword: str, limit: int = 100) -> Dict[str, Any]:
         """
         search for posts about a course in r/ucr
         """
@@ -96,7 +97,7 @@ class RedditService:
                 "error": str(e)
             }
     
-    def get_post_comments(self, post_id: str, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_post_comments(self, post_id: str, limit: int = 50) -> List[Dict[str, Any]]:
         """
         get comments from a specific post
         """
@@ -126,7 +127,7 @@ class RedditService:
             logger.error(f"Error getting comments for post {post_id}: {e}")
             return []
     
-    def get_full_post_content_for_ai(self, post_id: str, max_comments: int = 50) -> Dict[str, Any]:
+    def get_full_post_content_for_ai(self, post_id: str, max_comments: int = 100) -> Dict[str, Any]:
         """
         get full post content and comments for ai analysis (no text limits)
         """
@@ -182,7 +183,7 @@ class RedditService:
                 "comments": []
             }
     
-    def get_multiple_posts_for_ai(self, post_ids: List[str], max_comments_per_post: int = 30) -> Dict[str, Any]:
+    def get_multiple_posts_for_ai(self, post_ids: List[str], max_comments_per_post: int = 50) -> Dict[str, Any]:
         """
         get full content from multiple posts for ai analysis
         """
@@ -220,6 +221,102 @@ class RedditService:
                 "error": str(e),
                 "data": []
             }
+    
+    def _is_main_topic_about_course(self, post_data: Dict[str, Any], search_keyword: str) -> bool:
+        """
+        Check if the searched course is the MAIN topic of discussion in this post
+        """
+        post = post_data.get("post", {})
+        comments = post_data.get("comments", [])
+        
+        course_code = search_keyword.lower().replace(' ', '').replace('-', '')
+        title_lower = post.get("title", "").lower()
+        content_lower = post.get("selftext", "").lower()
+        
+        # Check if this is a list post that just mentions multiple classes
+        list_indicators = [
+            'anybody have these classes',
+            'anyone take these',
+            'has anyone taken',
+            'schedule help',
+            'class recommendations',
+            'which classes',
+            'what classes',
+            'need help choosing',
+            'course selection',
+            'registration help',
+            'what should i take'
+        ]
+        
+        is_list_post = any(indicator in title_lower or indicator in content_lower 
+                          for indicator in list_indicators)
+        
+        if is_list_post:
+            # For list posts, check if the discussion is actually focused on our course
+            all_text = f"{title_lower} {content_lower} {' '.join(c.get('body', '').lower() for c in comments)}"
+            course_code_matches = len(re.findall(course_code, all_text))
+            total_words = len(all_text.split())
+            
+            # If the course is mentioned less than 0.5% of all words in a list post, it's probably not the main topic
+            if total_words > 0 and course_code_matches / total_words < 0.005:
+                return False
+        
+        # Check if title is focused on our specific course
+        title_focused_keywords = [
+            'review', 'experience', 'professor', 'prof', 'difficulty', 'tips', 
+            'advice', 'grade', 'exam', 'final', 'midterm', 'homework', 'assignment',
+            'how is', 'taking', 'took', 'thoughts on', 'opinions on', 'recommend',
+            'easy', 'hard', 'worth it', 'skip', 'avoid'
+        ]
+        
+        title_focused_on_course = (course_code in title_lower and 
+                                  any(keyword in title_lower for keyword in title_focused_keywords))
+        
+        if title_focused_on_course:
+            return True
+        
+        # Check if post content is substantially about our course
+        if content_lower and len(content_lower) > 50:
+            course_mentions = len(re.findall(course_code, content_lower))
+            content_words = len(content_lower.split())
+            
+            # Course should be mentioned at least 1% of the time in substantial posts
+            if content_words > 0 and course_mentions / content_words >= 0.01:
+                return True
+        
+        # Check if comments are discussing our course specifically
+        relevant_comments = [
+            c for c in comments 
+            if course_code in c.get('body', '').lower() and len(c.get('body', '')) > 30
+        ]
+        
+        # If we have substantial comments about our course, it's likely the main topic
+        if len(relevant_comments) >= 2:
+            return True
+        
+        # Final check: if course is in title and there's any meaningful discussion, include it
+        if (course_code in title_lower and 
+            (len(content_lower) > 20 or len(comments) > 2)):
+            return True
+        
+        return False
+    
+    def filter_posts_for_main_topic(self, posts_data: List[Dict[str, Any]], search_keyword: str) -> List[Dict[str, Any]]:
+        """
+        Filter posts to only include those where the searched course is the main topic
+        """
+        if not posts_data or not search_keyword:
+            return posts_data
+        
+        logger.info(f"Filtering {len(posts_data)} posts for main topic relevance to '{search_keyword}'")
+        
+        filtered_posts = []
+        for post_data in posts_data:
+            if self._is_main_topic_about_course(post_data, search_keyword):
+                filtered_posts.append(post_data)
+        
+        logger.info(f"Filtered to {len(filtered_posts)} posts that are actually about '{search_keyword}'")
+        return filtered_posts
 
 # create a global instance
 reddit_service = RedditService() 

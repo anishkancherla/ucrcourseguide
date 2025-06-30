@@ -273,8 +273,8 @@ const categorizePostContent = (post: any, comments: any[]) => {
   return categories.length > 0 ? categories : [{ type: 'general', icon: '💬', label: 'Discussion' }]
 }
 
-// Function to filter and prioritize relevant Reddit posts
-const filterRelevantPosts = (posts: any[]) => {
+// Function to prioritize and sort Reddit posts (backend already filtered for main topic)
+const prioritizeRelevantPosts = (posts: any[]) => {
   if (!posts) return []
   
   return posts
@@ -342,7 +342,7 @@ const filterRelevantPosts = (posts: any[]) => {
       // Secondary sort: date (newer first)
       return a.daysSince - b.daysSince
     })
-    .slice(0, 10) // Top 10 most relevant posts
+    .slice(0, 20) // Top 20 most relevant posts for comprehensive analysis
 }
 
 // Add this helper function before the main component
@@ -605,7 +605,6 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
     { id: "difficulty", label: "Difficulty", icon: BarChart2 },
     { id: "professors", label: "Professors", icon: Users },
     { id: "advice", label: "Advice & Tips", icon: Lightbulb },
-    { id: "pitfalls", label: "Common Pitfalls", icon: AlertTriangle },
     { id: "grades", label: "Grade Distribution", icon: FileText },
     { id: "reddit", label: "Relevant Reddit Posts", icon: MessageCircle },
     { id: "database", label: "UCR Class Difficulty Database Info", icon: Database },
@@ -762,58 +761,67 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
           </Card>
         )}
 
-        {/* Advice Tab */}
-        {activeTab === "advice" && data.advice && (
+        {/* Advice & Tips Tab (with Pitfalls) */}
+        {activeTab === "advice" && (data.advice || data.common_pitfalls) && (
           <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
             <h3 className="text-xl font-bold text-white mb-4">Advice & Tips for Success</h3>
-            <div className="space-y-4">
-              {data.advice.course_specific_tips?.length > 0 && (
-                <div>
-                  <h4 className="text-lg font-semibold text-white mb-2">Course-Specific Tips</h4>
-                  <ol className="space-y-2">
-                    {data.advice.course_specific_tips.map((tip, idx) => (
-                      <li key={idx} className="text-white/80 flex items-start">
-                        <span className="text-blue-400 mr-2 font-bold">{idx + 1}.</span>
-                        {tip}
-                      </li>
-                    ))}
-                  </ol>
+            <div className="space-y-6">
+              {data.advice && (
+                <div className="space-y-4">
+                  {data.advice.course_specific_tips?.length > 0 && (
+                    <div>
+                      <h4 className="text-lg font-semibold text-white mb-2">Course-Specific Tips</h4>
+                      <ol className="space-y-2">
+                        {data.advice.course_specific_tips.map((tip, idx) => (
+                          <li key={idx} className="text-white/80 flex items-start">
+                            <span className="text-blue-400 mr-2 font-bold">{idx + 1}.</span>
+                            {tip}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+                  
+                  {data.advice.resources?.length > 0 && (
+                    <div>
+                      <h4 className="text-lg font-semibold text-white mb-2">Recommended Resources</h4>
+                      <ul className="space-y-2">
+                        {data.advice.resources.map((resource, idx) => (
+                          <li key={idx} className="text-white/80 flex items-start">
+                            <span className="text-purple-400 mr-2">•</span>
+                            {resource}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
               
-              {data.advice.resources?.length > 0 && (
+              {/* Common Pitfalls Section */}
+              {data.common_pitfalls && data.common_pitfalls.length > 0 && (
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-2">Recommended Resources</h4>
-                  <ul className="space-y-2">
-                    {data.advice.resources.map((resource, idx) => (
-                      <li key={idx} className="text-white/80 flex items-start">
-                        <span className="text-purple-400 mr-2">•</span>
-                        {resource}
-                      </li>
+                  <h4 className="text-lg font-semibold text-white mb-3 flex items-center">
+                    <AlertTriangle className="mr-2 h-5 w-5 text-red-400" />
+                    Common Pitfalls to Avoid
+                  </h4>
+                  <div className="space-y-3">
+                    {data.common_pitfalls.map((pitfall, idx) => (
+                      <div key={idx} className="bg-red-500/10 border border-red-500/20 p-3 rounded">
+                        <div className="flex items-start">
+                          <span className="text-red-400 mr-2">⚠️</span>
+                          <p className="text-white/90">{pitfall}</p>
+                        </div>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               )}
             </div>
           </Card>
         )}
 
-        {/* Common Pitfalls Tab */}
-        {activeTab === "pitfalls" && data.common_pitfalls && (
-          <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
-            <h3 className="text-xl font-bold text-white mb-4">Common Pitfalls</h3>
-            <div className="space-y-3">
-              {data.common_pitfalls.map((pitfall, idx) => (
-                <div key={idx} className="bg-red-500/10 border border-red-500/20 p-3 rounded">
-                  <div className="flex items-start">
-                    <span className="text-red-400 mr-2">⚠️</span>
-                    <p className="text-white/90">{pitfall}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
+
 
         {/* Grade Distribution Tab */}
         {activeTab === "grades" && (
@@ -854,10 +862,10 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
           <Card className="bg-white/10 backdrop-blur-2xl border-white/20 p-6">
             <h3 className="text-xl font-bold text-white mb-4">Relevant Reddit Posts</h3>
             <p className="text-white/70 text-sm mb-6">
-              Posts prioritized by recency and student opinions, advice, and course-relevant content
+              Pre-filtered posts where this course is the main topic, prioritized by recency and student engagement
             </p>
             <div className="space-y-4">
-              {filterRelevantPosts(results.raw_data.posts).map((postData: any, idx: number) => (
+              {prioritizeRelevantPosts(results.raw_data.posts).map((postData: any, idx: number) => (
                 <Card key={idx} className="bg-white/5 border-white/10 p-4 hover:bg-white/10 transition-all">
                   <div className="flex items-start justify-between mb-3">
                     <h4 className="text-white font-medium text-lg flex-1 pr-4">

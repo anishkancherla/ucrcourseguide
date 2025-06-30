@@ -195,6 +195,34 @@ IMPORTANT INSTRUCTIONS:
 - SORT PROFESSORS BY RATING: Order professors array from highest to lowest star rating
 - Be comprehensive and detailed in your analysis
 
+### CRITICAL: PROFESSOR RATING SYSTEM
+For each professor, you MUST:
+1. **COLLECT ALL AVAILABLE REVIEWS**: Include ALL mentions of the professor from Reddit posts, comments, and UCR database entries. For popular classes, aim for 5-10+ reviews per professor when available.
+
+2. **RATE EACH INDIVIDUAL REVIEW** on a strict 1-5 scale:
+   - **5/5**: Overwhelmingly positive (e.g., "Amazing professor, best class ever, learned so much")
+   - **4/5**: Mostly positive with minor issues (e.g., "Good teacher, engaging lectures, tough but fair")
+   - **3/5**: Mixed/neutral (e.g., "Okay professor, some good some bad points")
+   - **2/5**: Mostly negative with some positives (e.g., "Poor teaching but helpful in office hours")
+   - **1/5**: Overwhelmingly negative (e.g., "Terrible professor, poor teaching, changes things last minute")
+
+3. **CALCULATE AVERAGE**: Add up all individual review ratings and divide by number of reviews. Round to 1 decimal place.
+
+4. **EXAMPLE**: If reviews are 1/5, 2/5, 4/5 = (1+2+4)/3 = 2.3/5 average rating
+
+### RATING EXAMPLES:
+- "She does a poor job at teaching, speeds through slides, changes homework questions last minute" = **1/5**
+- "Just study and put in the work. Go to office hours if you have questions" = **3/5** 
+- "She is strict but helpful if you ask questions" = **3/5**
+- "Amazing professor, clear explanations, fair exams" = **5/5**
+
+### DIFFICULTY SECTION INSTRUCTIONS:
+For the "difficulty" explanation array:
+- **ONLY include actual student quotes and reasoning** from Reddit posts/comments
+- **DO NOT reference database ratings** - users can see those themselves
+- Include specific student observations like: "Heavy coding assignments", "Professor moves too fast", "Concepts are confusing"
+- Focus on WHY students find it difficult/easy based on their actual experiences
+
 Analyze the data and return ONLY valid JSON in this exact format:
 
 {{
@@ -211,19 +239,21 @@ Analyze the data and return ONLY valid JSON in this exact format:
         "rank": "Easy",
         "rating": 2.5,
         "max_rating": 10,
-        "explanation": ["Reason 1", "Reason 2", "Reason 3"],
+        "explanation": ["STUDENT QUOTE: 'Actual student reasoning from posts'", "STUDENT QUOTE: 'Another specific reason students mention'", "STUDENT QUOTE: 'Third specific student observation'"],
         "minority_opinions": ["Any contrarian difficulty opinions"]
     }},
     "professors": [
         {{
             "name": "Professor Name",
-            "rating": 4.2,
+            "rating": 2.3,
             "max_rating": 5,
             "reviews": [
-                {{"source": "database", "date": "2024-01-15", "text": "Review text"}},
-                {{"source": "reddit", "date": "2024-02-20", "text": "Review text"}}
+                {{"source": "database", "date": "2024-01-15", "text": "Review text here"}},
+                {{"source": "reddit", "date": "2024-02-20", "text": "Review text here"}},
+                {{"source": "database", "date": "2024-03-10", "text": "Another review"}},
+                {{"source": "reddit", "date": "2024-04-15", "text": "More review text"}}
             ],
-            "minority_opinions": ["Any negative opinions about this prof"]
+            "minority_opinions": ["Any contrarian opinions about this prof"]
         }}
     ],
     "advice": {{
@@ -263,9 +293,16 @@ Course ID: {course}
 3. Break ties with up-votes (Reddit) or `individual_difficulty` extremes (database).  
 4. Ignore off-topic chatter, memes, or duplicates.  
 5. **Capture both strengths and weaknesses** that appear repeatedly (≥ 2 similar comments) and any strong minority views.  
-6. ***Compute a 1–5-star rating for each professor***:  
-   • 5 ★ = overwhelmingly positive; 1 ★ = overwhelmingly negative; 3 ★ = mixed.  
-   • Base the rating on the ratio of positive to negative comments.  
+6. ***STRICT PROFESSOR RATING SYSTEM*** - For each professor:
+   • **COLLECT ALL AVAILABLE REVIEWS**: Include ALL mentions from Reddit posts, comments, and UCR database. For popular classes, aim for 5-10+ reviews per professor.
+   • **RATE EACH INDIVIDUAL REVIEW** on 1-5 scale:
+     - 5★ = Overwhelmingly positive ("Amazing professor, best class ever")
+     - 4★ = Mostly positive with minor issues ("Good teacher, tough but fair")  
+     - 3★ = Mixed/neutral ("Okay professor, some good some bad")
+     - 2★ = Mostly negative with some positives ("Poor teaching but helpful in office hours")
+     - 1★ = Overwhelmingly negative ("Terrible professor, poor teaching, changes things last minute")
+   • **CALCULATE AVERAGE**: Add all review ratings, divide by number of reviews, round to 1 decimal.
+   • **EXAMPLE**: Reviews of 1★, 2★, 4★ = (1+2+4)/3 = 2.3★ average
 7. Write output with the exact markdown headings below. If a section has no info, keep the heading and write "No clear info."
 
 ### Output format (markdown)
@@ -280,11 +317,11 @@ One-sentence vibe (e.g., "Mostly positive but time-consuming").
 – 2-4 bullet points explaining why.
 
 #### Professors & What Students Say
-| Professor | ★ Rating | Representative reviews<sup>†</sup> |
+| Professor | ★ Rating | All Available Reviews<sup>†</sup> |
 |-----------|---------|-------------------------------------|
-| Name      | ★★★★☆   | 1. 📊 2024-11-15 – "Engaging lectures but tough quizzes."<br>2. 👽 2025-03-02 – "Clear grader, slides online." |
+| Name      | ★★☆☆☆   | 1. 📊 2024-11-15 – "Poor teaching, changes things last minute."<br>2. 👽 2025-03-02 – "Helpful in office hours but lectures unclear."<br>3. 📊 2024-09-20 – "Very strict but fair if you put in effort."<br>4. 👽 2024-12-01 – "Difficult class but learned a lot." |
 
-<sup>†</sup> Prefix each quote with **📊** if it came from the database or **👽** if from Reddit, and include the review date (YYYY-MM-DD).
+<sup>†</sup> Include ALL available reviews (aim for 5-10+ per professor for popular classes). Prefix with **📊** for database or **👽** for Reddit, include date (YYYY-MM-DD).
 
 #### Advice & Tips for Success
 **COURSE-SPECIFIC ONLY:** List practical tips that are unique to this exact course/professors. Avoid generic advice like "study early," "stay organized," "attend lectures" - only include tips that are specific to this course's format, professors, exams, or unique requirements.
@@ -301,7 +338,8 @@ If discussed, summarise; else "No clear info."
 - Plain English.  
 - Bullets ≤ 20 words.  
 - **Include positive and negative viewpoints.**  
-- Each professor needs **at least two quotes** (one positive, one negative if available).  
+- **CRITICAL: For popular classes (ones where you are able to collect lots of info), each professor needs 5-10+ reviews when available. For small classes (aka not much info), include ALL available mentions.**
+- Each professor must have **calculated average rating** based on individual review ratings (1-5 scale each).
 - Quotes must show the review date and the correct icon (📊 or 👽).  
 - Use Unicode stars (★) for ratings.  
 - No invented facts; if unsure, write "Not mentioned."  

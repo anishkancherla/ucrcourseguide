@@ -182,8 +182,8 @@ class SheetsService:
         avg_difficulty = sum(difficulties) / len(difficulties) if difficulties else None
         overall_avg_difficulty = avg_difficulties[0] if avg_difficulties else None
         
-        # get recent comments
-        recent_reviews = sorted(reviews, key=lambda x: x.date, reverse=True)[:5]
+        # get recent comments (increased limit for more comprehensive analysis)
+        recent_reviews = sorted(reviews, key=lambda x: x.date, reverse=True)[:20]
         
         return {
             "class_code": class_code.upper(),
