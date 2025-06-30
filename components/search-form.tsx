@@ -72,8 +72,8 @@ export function SearchForm({ onSearch }: SearchFormProps) {
         <LiquidGlassButton 
           type="submit" 
           size="icon"
-          glassIntensity={0.4}
-          className="bg-white/20 hover:bg-white/30 h-12 w-12"
+          glassIntensity={0.2}
+          className="bg-white/5 hover:bg-white/10 border-white/30 h-12 w-12"
         >
           <Search className="h-6 w-6 text-white" />
         </LiquidGlassButton>

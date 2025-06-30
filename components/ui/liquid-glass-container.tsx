@@ -20,9 +20,9 @@ const LiquidGlassContainer = React.forwardRef<HTMLDivElement, LiquidGlassContain
     if (disableInteractive) {
       // Static glass container without cursor effects
       const variantStyles = {
-        default: "bg-white/80 border border-white/40 md:!bg-white/10 md:!border-white/20 md:backdrop-blur-md md:supports-[backdrop-filter]:backdrop-blur-md",
-        subtle: "bg-white/60 border border-white/30 md:!bg-white/5 md:!border-white/10 md:backdrop-blur-sm md:supports-[backdrop-filter]:backdrop-blur-sm",
-        intense: "bg-white/90 border border-white/50 md:!bg-white/15 md:!border-white/30 md:backdrop-blur-lg md:supports-[backdrop-filter]:backdrop-blur-lg"
+        default: "bg-white/10 border border-white/20 supports-[backdrop-filter]:backdrop-blur-md",
+        subtle: "bg-white/5 border border-white/10 supports-[backdrop-filter]:backdrop-blur-sm",
+        intense: "bg-white/15 border border-white/30 supports-[backdrop-filter]:backdrop-blur-lg"
       }
 
       return (
@@ -31,13 +31,12 @@ const LiquidGlassContainer = React.forwardRef<HTMLDivElement, LiquidGlassContain
           className={cn(
             "relative overflow-hidden rounded-2xl shadow-2xl",
             "ring-1 ring-inset ring-white/10",
-            // Mobile text color adjustment
-            "text-gray-800 md:text-white",
             variantStyles[variant],
             className
           )}
           style={{
-            // No inline styles needed - handled by CSS classes
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
           }}
           {...props}
         >

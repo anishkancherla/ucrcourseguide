@@ -741,17 +741,17 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                 key={tab.id}
                 onClick={() => hasData && setActiveTab(tab.id)}
                 disabled={!hasData}
-                glassIntensity={isActive ? 0.6 : hasData ? 0.3 : 0.1}
+                glassIntensity={isActive ? 0.3 : hasData ? 0.15 : 0.05}
                 className={`flex items-center px-4 py-2 text-sm font-medium transition-all ${
                   !hasData
-                    ? "bg-white/5 text-white/30 cursor-not-allowed border-white/10"
+                    ? "bg-white/3 text-white/30 cursor-not-allowed border-white/10"
                     : isActive
                     ? isDatabase
                       ? "bg-[#0B6B3A]/80 text-white shadow-lg border-[#0B6B3A]/50"
                       : isReddit
                       ? "bg-[#CC4125]/80 text-white shadow-lg border-[#CC4125]/50"
-                      : "bg-white/30 text-white shadow-lg border-white/40"
-                    : "bg-white/10 text-white/70 hover:text-white hover:bg-white/20 border-white/20"
+                      : "bg-white/15 text-white shadow-lg border-white/40"
+                    : "bg-white/5 text-white/70 hover:text-white hover:bg-white/10 border-white/20"
                 }`}
               >
                 {isReddit ? (

@@ -11,9 +11,9 @@ interface SimpleLiquidGlassProps {
 }
 
 const variantStyles = {
-  default: "bg-white/80 hover:bg-white/90 border border-white/40 md:!bg-white/10 md:hover:!bg-white/15 md:!border-white/20 md:backdrop-blur-md md:supports-[backdrop-filter]:backdrop-blur-md",
-  subtle: "bg-white/60 hover:bg-white/70 border border-white/30 md:!bg-white/5 md:hover:!bg-white/10 md:!border-white/10 md:backdrop-blur-sm md:supports-[backdrop-filter]:backdrop-blur-sm",
-  intense: "bg-white/90 hover:bg-white/95 border border-white/50 md:!bg-white/15 md:hover:!bg-white/20 md:!border-white/30 md:backdrop-blur-lg md:supports-[backdrop-filter]:backdrop-blur-lg"
+  default: "bg-white/10 border border-white/20 hover:bg-white/15 supports-[backdrop-filter]:backdrop-blur-md supports-[backdrop-filter]:hover:backdrop-blur-lg",
+  subtle: "bg-white/5 border border-white/10 hover:bg-white/10 supports-[backdrop-filter]:backdrop-blur-sm supports-[backdrop-filter]:hover:backdrop-blur-md",
+  intense: "bg-white/15 border border-white/30 hover:bg-white/20 supports-[backdrop-filter]:backdrop-blur-lg supports-[backdrop-filter]:hover:backdrop-blur-xl"
 }
 
 export function SimpleLiquidGlass({ 
@@ -37,8 +37,6 @@ export function SimpleLiquidGlass({
       className={cn(
         "relative overflow-hidden rounded-2xl shadow-2xl transition-all duration-300",
         "ring-1 ring-inset ring-white/10",
-        // Mobile text color adjustment
-        "text-gray-800 md:text-white",
         variantStyles[variant],
         isHovered && !disableHoverScale && "shadow-3xl scale-[1.02]",
         isHovered && disableHoverScale && "shadow-3xl",
@@ -48,10 +46,11 @@ export function SimpleLiquidGlass({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{
-        // Glass effect for desktop - CSS classes will override on mobile
         background: isHovered 
           ? `radial-gradient(circle at ${mousePosition.x}% ${mousePosition.y}%, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.02) 100%)`
-          : undefined
+          : 'rgba(255,255,255,0.1)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
       }}
     >
       {/* Animated glass effect overlay */}
