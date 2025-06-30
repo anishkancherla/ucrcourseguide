@@ -10,6 +10,7 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import redditLogo from "@/app/images/redditlogo.png"
 import googleSheetsLogo from "@/app/images/googlesheetslogo.png"
+import redditLogoWhite from "@/app/images/redditlogowhite.png"
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from 'recharts'
 
 interface StructuredResultsDisplayProps {
@@ -643,7 +644,7 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
           <div className="text-sm text-white/60 flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
             {results.analysis_metadata?.total_posts_analyzed && (
               <span className="flex items-center gap-2">
-                <Image src={redditLogo} alt="Reddit" width={20} height={20} className="object-contain" />
+                <Image src={redditLogoWhite} alt="Reddit" width={20} height={20} className="object-contain" />
                 {results.analysis_metadata.total_posts_analyzed} Reddit posts
                 {results.analysis_metadata?.total_comments_analyzed && 
                   ` and ${results.analysis_metadata.total_comments_analyzed} comments`
