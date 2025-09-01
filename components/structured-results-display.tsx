@@ -11,6 +11,7 @@ import Image from "next/image"
 import redditLogo from "@/app/images/redditlogo.png"
 import googleSheetsLogo from "@/app/images/googlesheetslogo.png"
 import redditLogoWhite from "@/app/images/redditlogowhite.png"
+import rmpLogo from "@/app/images/rmplogo.png"
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from 'recharts'
 
 interface StructuredResultsDisplayProps {
@@ -38,10 +39,23 @@ interface StructuredResultsDisplayProps {
         name: string
         rating: number
         max_rating: number
+        rmp_overall_rating?: number
+        rmp_link?: string
+        department?: string
+        sentiment_distribution?: {
+          positive: number
+          neutral: number
+          negative: number
+        }
+        total_reviews_analyzed?: number
         reviews: Array<{
           source: string
           date: string
           text: string
+          rating?: number
+          class?: string
+          grade?: string
+          difficulty?: number
         }>
         minority_opinions?: string[]
       }>
@@ -49,14 +63,16 @@ interface StructuredResultsDisplayProps {
         course_specific_tips: string[]
         resources: string[]
         minority_opinions?: string[]
-      }
-      common_pitfalls?: string[]
-      grade_distribution?: string
-    }
+          }
+    common_pitfalls?: string[]
+  }
     analysis_metadata?: {
       total_posts_analyzed: number
       total_comments_analyzed: number
       ucr_database_included?: boolean
+      rmp_enabled?: boolean
+      rmp_professors_count?: number
+      total_rmp_reviews?: number
     }
     raw_data?: {
       course: string
@@ -82,7 +98,8 @@ interface StructuredResultsDisplayProps {
 
 // Custom Star Rating Component
 const StarRating = ({ rating, maxRating = 5, animate = false }: { rating: number; maxRating?: number; animate?: boolean }) => {
-  const [visibleStars, setVisibleStars] = useState(animate ? 0 : rating)
+  const safeRating = rating != null ? rating : 0
+  const [visibleStars, setVisibleStars] = useState(animate ? 0 : safeRating)
   
   useEffect(() => {
     if (animate) {
@@ -90,13 +107,13 @@ const StarRating = ({ rating, maxRating = 5, animate = false }: { rating: number
       setVisibleStars(0)
       
       // Animate stars filling in one by one
-      const totalStars = Math.ceil(rating) // Number of stars to fill (including partial)
+              const totalStars = Math.ceil(safeRating) // Number of stars to fill (including partial)
       let currentStar = 0
       
       const fillStars = () => {
         if (currentStar < totalStars) {
           currentStar += 0.1 // Very small increments for ultra-smooth animation
-          const nextValue = Math.min(currentStar, rating)
+          const nextValue = Math.min(currentStar, safeRating)
           setVisibleStars(nextValue)
           
           // Continue animation with very short interval
@@ -108,9 +125,9 @@ const StarRating = ({ rating, maxRating = 5, animate = false }: { rating: number
       const timer = setTimeout(fillStars, 50)
       return () => clearTimeout(timer)
     } else {
-      setVisibleStars(rating)
+      setVisibleStars(safeRating)
     }
-  }, [rating, animate])
+  }, [safeRating, animate])
 
   const fullStars = Math.floor(visibleStars)
   const hasHalfStar = visibleStars % 1 >= 0.5
@@ -140,7 +157,7 @@ const StarRating = ({ rating, maxRating = 5, animate = false }: { rating: number
         <Star key={`empty-${i}`} className="h-4 w-4 text-gray-300 transition-all duration-150 ease-out" />
       ))}
       <span className="ml-2 text-sm text-white/80">
-        {rating.toFixed(1)}/{maxRating}
+        {rating != null ? rating.toFixed(1) : '0.0'}/{maxRating}
       </span>
     </div>
   )
@@ -181,7 +198,185 @@ const SourceIcon = ({ source }: { source: string }) => {
   if (source === 'database') {
     return <Image src={googleSheetsLogo} alt="Google Sheets" width={16} height={16} className="object-contain" />
   }
+  if (source === 'rmp') {
+    return <Image src={rmpLogo} alt="RMP" width={16} height={16} className="object-contain" />
+  }
   return <Image src={redditLogo} alt="Reddit" width={16} height={16} className="object-contain" />
+}
+
+// Sentiment Distribution Bar Component
+const SentimentDistributionBar = ({ distribution }: { distribution: { positive: number; neutral: number; negative: number } }) => {
+  const total = distribution.positive + distribution.neutral + distribution.negative
+  const positivePercent = (distribution.positive / total) * 100
+  const neutralPercent = (distribution.neutral / total) * 100
+  const negativePercent = (distribution.negative / total) * 100
+  
+  return (
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs text-white/60">Review Sentiment</span>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-green-400">+{distribution.positive}</span>
+          <span className="text-gray-400">•{distribution.neutral}</span>
+          <span className="text-red-400">-{distribution.negative}</span>
+        </div>
+      </div>
+      <div className="w-full bg-white/20 rounded-full h-2 flex overflow-hidden">
+        <div 
+          className="bg-green-400 transition-all duration-1000 ease-out"
+          style={{ width: `${positivePercent}%` }}
+        />
+        <div 
+          className="bg-gray-400 transition-all duration-1000 ease-out"
+          style={{ width: `${neutralPercent}%` }}
+        />
+        <div 
+          className="bg-red-400 transition-all duration-1000 ease-out"
+          style={{ width: `${negativePercent}%` }}
+        />
+      </div>
+    </div>
+  )
+}
+
+// Enhanced Professor Card Component with RMP Integration
+const ProfessorCard = ({ professor, animate }: { professor: any; animate: boolean }) => {
+  const [showAllReviews, setShowAllReviews] = useState(false)
+  
+  // Helper function to get rating color based on value
+  const getRatingColor = (rating: number) => {
+    if (rating >= 4.0) return 'text-green-400'
+    if (rating >= 3.0) return 'text-yellow-400'
+    if (rating >= 2.0) return 'text-orange-400'
+    return 'text-red-400'
+  }
+  
+  // Helper function to get review sentiment color
+  const getReviewSentimentColor = (rating: number) => {
+    if (rating >= 4) return 'border-l-green-400 bg-green-500/5'
+    if (rating >= 3) return 'border-l-yellow-400 bg-yellow-500/5'
+    if (rating >= 2) return 'border-l-orange-400 bg-orange-500/5'
+    return 'border-l-red-400 bg-red-500/5'
+  }
+  
+  // Show first 3 reviews by default, all when expanded
+  const reviewsToShow = showAllReviews ? professor.reviews : professor.reviews?.slice(0, 3)
+  const hasMoreReviews = professor.reviews && professor.reviews.length > 3
+  
+  return (
+    <LiquidGlassContainer variant="subtle" disableInteractive={true} className="p-4">
+      {/* Professor Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex-1">
+          <h4 className="text-lg font-semibold text-white">{professor.name}</h4>
+          {professor.department && (
+            <p className="text-xs text-white/60">{professor.department}</p>
+          )}
+        </div>
+        <div className="text-right">
+          <StarRating rating={professor.rating} maxRating={professor.max_rating} animate={animate} />
+          {professor.rmp_overall_rating && (
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs text-white/60">RMP:</span>
+              <span className={`text-sm font-medium ${getRatingColor(professor.rmp_overall_rating)}`}>
+                {professor.rmp_overall_rating.toFixed(1)}/5.0
+              </span>
+              {professor.rmp_link && (
+                <a 
+                  href={professor.rmp_link} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-orange-400 hover:text-orange-300 transition-colors"
+                >
+                  <LinkIcon className="h-3 w-3" />
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Sentiment Distribution (if available) */}
+      {professor.sentiment_distribution && (
+        <div className="mb-4">
+          <SentimentDistributionBar distribution={professor.sentiment_distribution} />
+        </div>
+      )}
+      
+      {/* Review Count */}
+      {professor.total_reviews_analyzed && (
+        <div className="mb-3">
+          <span className="text-xs text-white/60">
+            Based on {professor.total_reviews_analyzed} reviews across all sources
+          </span>
+        </div>
+      )}
+      
+      {/* Reviews Section */}
+      <div className="space-y-2">
+        {reviewsToShow?.map((review: any, idx: number) => (
+          <div 
+            key={idx} 
+            className={`text-sm text-white/80 p-3 rounded-lg border-l-4 transition-all hover:bg-white/5 ${
+              review.rating ? getReviewSentimentColor(review.rating) : 'border-l-gray-400 bg-gray-500/5'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <SourceIcon source={review.source} />
+                {formatReviewDate(review.date) && (
+                  <span className="text-xs text-white/60">{formatReviewDate(review.date)}</span>
+                )}
+                {review.class && (
+                  <span className="text-xs bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded">
+                    {review.class}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {review.rating && (
+                  <span className={`text-xs font-medium ${getRatingColor(review.rating)}`}>
+                    {review.rating}/5
+                  </span>
+                )}
+                {review.grade && (
+                  <span className="text-xs bg-green-500/20 text-green-300 px-1.5 py-0.5 rounded">
+                    Grade: {review.grade}
+                  </span>
+                )}
+              </div>
+            </div>
+            <p className="leading-relaxed">"{review.text}"</p>
+            {review.difficulty && (
+              <div className="mt-2 text-xs text-white/60">
+                Difficulty: {review.difficulty}/5
+              </div>
+            )}
+          </div>
+        ))}
+        
+        {/* Show More/Less Button */}
+        {hasMoreReviews && (
+          <button
+            onClick={() => setShowAllReviews(!showAllReviews)}
+            className="w-full mt-2 text-xs text-blue-300 hover:text-blue-200 transition-colors p-2 bg-white/5 rounded-lg hover:bg-white/10"
+          >
+            {showAllReviews ? 'Show Less Reviews' : `Show ${professor.reviews.length - 3} More Reviews`}
+          </button>
+        )}
+        
+        {/* Minority Opinions */}
+        {professor.minority_opinions && professor.minority_opinions.length > 0 && (
+          <div className="mt-3 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+            <p className="text-xs text-orange-300 font-medium mb-2">💭 Alternative Perspectives:</p>
+            {professor.minority_opinions.map((opinion: string, idx: number) => (
+              <p key={idx} className="text-xs text-white/70 mb-1">• {opinion}</p>
+            ))}
+          </div>
+        )}
+      </div>
+    </LiquidGlassContainer>
+  )
 }
 
 // Mobile Review Card Component with Expandable Comments
@@ -235,48 +430,40 @@ const MobileReviewCard = ({ review, idx }: { review: any; idx: number }) => {
   )
 }
 
-// Professor Card Component
-const ProfessorCard = ({ professor, animate }: { professor: any; animate: boolean }) => {
-  return (
-    <LiquidGlassContainer variant="subtle" disableInteractive={true} className="p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h4 className="text-lg font-semibold text-white">{professor.name}</h4>
-        <StarRating rating={professor.rating} maxRating={professor.max_rating} animate={animate} />
-      </div>
-      
-      <div className="space-y-2">
-        {professor.reviews?.map((review: any, idx: number) => (
-          <div key={idx} className="text-sm text-white/80 p-2 bg-white/5 rounded">
-            <div className="flex items-center gap-2 mb-1">
-              <SourceIcon source={review.source} />
-              <span className="text-xs text-white/60">{review.date}</span>
-            </div>
-            <p>"{review.text}"</p>
-          </div>
-        ))}
-        
-        {professor.minority_opinions && professor.minority_opinions.length > 0 && (
-          <div className="mt-3 p-2 bg-orange-500/10 border border-orange-500/20 rounded">
-            <p className="text-xs text-orange-300 font-medium mb-1">Alternative perspectives:</p>
-            {professor.minority_opinions.map((opinion: string, idx: number) => (
-              <p key={idx} className="text-xs text-white/70">• {opinion}</p>
-            ))}
-          </div>
-        )}
-      </div>
-    </LiquidGlassContainer>
-  )
-}
-
 // Helper function to convert Unix timestamp to readable date
 const formatPostDate = (created_utc: number) => {
-  if (!created_utc) return 'Unknown date'
+  if (!created_utc) return '' // Return empty string instead of 'Unknown date'
   const date = new Date(created_utc * 1000)
   return date.toLocaleDateString('en-US', { 
     year: 'numeric', 
     month: 'short', 
     day: 'numeric' 
   })
+}
+
+// Helper function to format review dates (handles different date formats)
+const formatReviewDate = (dateString: string | number) => {
+  if (!dateString) return '' // Return empty string instead of 'Unknown'
+  
+  // If it's a Unix timestamp (number)
+  if (typeof dateString === 'number') {
+    return formatPostDate(dateString)
+  }
+  
+  // If it's already a formatted date string, return as is
+  if (typeof dateString === 'string') {
+    // Check if it's a valid date string
+    const date = new Date(dateString)
+    if (!isNaN(date.getTime())) {
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      })
+    }
+  }
+  
+  return '' // Return empty string for invalid dates
 }
 
 // Helper function to get days since post was created
@@ -457,146 +644,7 @@ const parseUCRDatabaseData = (rawData: string) => {
   return result
 }
 
-// Grade Distribution Radar Chart Component
-const GradeDistributionRadar = ({ gradeText, animate }: { gradeText: string; animate: boolean }) => {
-  const [animatedData, setAnimatedData] = useState<any[]>([])
-  
-  // Parse the grade distribution text to extract components and weights
-  const parseGradeDistribution = (text: string) => {
-    const components = []
-    const lowerText = text.toLowerCase()
-    
-    // Common grade components with estimated weights based on text analysis
-    if (lowerText.includes('quiz')) {
-      const weight = lowerText.includes('mostly') || lowerText.includes('primarily') ? 85 : 
-                    lowerText.includes('few') || lowerText.includes('minimal') ? 25 : 45
-      components.push({ subject: 'Quizzes', value: weight, fullMark: 100 })
-    }
-    
-    if (lowerText.includes('participation')) {
-      const weight = lowerText.includes('minimal') || lowerText.includes('no participation') ? 15 : 
-                    lowerText.includes('heavy') || lowerText.includes('important') ? 40 : 25
-      components.push({ subject: 'Participation', value: weight, fullMark: 100 })
-    }
-    
-    if (lowerText.includes('project')) {
-      const weight = lowerText.includes('heavy') || lowerText.includes('major') ? 85 : 
-                    lowerText.includes('small') || lowerText.includes('minor') ? 35 : 60
-      components.push({ subject: 'Projects', value: weight, fullMark: 100 })
-    }
-    
-    if (lowerText.includes('research')) {
-      const weight = lowerText.includes('extensive') || lowerText.includes('major') ? 70 : 45
-      components.push({ subject: 'Research', value: weight, fullMark: 100 })
-    }
-    
-    if (lowerText.includes('exam') || lowerText.includes('test') || lowerText.includes('midterm') || lowerText.includes('final')) {
-      const weight = lowerText.includes('minimal') || lowerText.includes('no exam') || lowerText.includes('no heavy') ? 20 : 
-                    lowerText.includes('heavy') || lowerText.includes('mostly') ? 90 : 65
-      components.push({ subject: 'Exams', value: weight, fullMark: 100 })
-    }
-    
-    if (lowerText.includes('homework') || lowerText.includes('assignment')) {
-      const weight = lowerText.includes('heavy') || lowerText.includes('lots') ? 80 : 
-                    lowerText.includes('minimal') || lowerText.includes('few') ? 30 : 50
-      components.push({ subject: 'Homework', value: weight, fullMark: 100 })
-    }
-    
-    // Check for attendance/lab components
-    if (lowerText.includes('attendance') || lowerText.includes('lab')) {
-      const weight = lowerText.includes('mandatory') || lowerText.includes('required') ? 30 : 20
-      components.push({ subject: 'Attendance/Lab', value: weight, fullMark: 100 })
-    }
-    
-    // Add default components with more varied values if none found
-    if (components.length === 0) {
-      components.push(
-        { subject: 'Assignments', value: 55, fullMark: 100 },
-        { subject: 'Participation', value: 20, fullMark: 100 },
-        { subject: 'Exams', value: 80, fullMark: 100 },
-        { subject: 'Projects', value: 35, fullMark: 100 },
-        { subject: 'Quizzes', value: 40, fullMark: 100 }
-      )
-    }
-    
-    // Ensure we have at least 3 components for a good radar chart
-    if (components.length < 3) {
-      const existingSubjects = components.map(c => c.subject)
-      const additionalComponents = [
-        { subject: 'Homework', value: 45, fullMark: 100 },
-        { subject: 'Participation', value: 25, fullMark: 100 },
-        { subject: 'Final Exam', value: 75, fullMark: 100 },
-        { subject: 'Attendance', value: 15, fullMark: 100 }
-      ]
-      
-      for (const comp of additionalComponents) {
-        if (!existingSubjects.includes(comp.subject) && components.length < 5) {
-          components.push(comp)
-        }
-      }
-    }
-    
-    return components
-  }
-  
-  const staticData = parseGradeDistribution(gradeText)
-  
-  useEffect(() => {
-    if (animate) {
-      // Start with zero values
-      setAnimatedData(staticData.map(item => ({ ...item, value: 0 })))
-      
-      // Animate to full values
-      const timer = setTimeout(() => {
-        setAnimatedData(staticData)
-      }, 200)
-      
-      return () => clearTimeout(timer)
-    } else {
-      setAnimatedData(staticData)
-    }
-  }, [animate, gradeText])
-  
-  return (
-    <div className="w-full h-96">
-      <ResponsiveContainer width="100%" height="100%">
-        <RadarChart data={animatedData} margin={{ top: 20, right: 80, bottom: 20, left: 80 }}>
-          <PolarGrid 
-            stroke="rgba(255, 255, 255, 0.2)" 
-            strokeWidth={1}
-          />
-          <PolarAngleAxis 
-            dataKey="subject" 
-            tick={{ 
-              fill: 'rgba(255, 255, 255, 0.8)', 
-              fontSize: 12,
-              fontFamily: 'ABC Diatype, -apple-system, BlinkMacSystemFont, sans-serif',
-              fontWeight: 100
-            }}
-            className="text-white"
-          />
-          <PolarRadiusAxis 
-            angle={90} 
-            domain={[0, 100]} 
-            tick={false}
-            tickCount={6}
-          />
-          <Radar
-            name="Grade Weight"
-            dataKey="value"
-            stroke="#60A5FA"
-            fill="rgba(96, 165, 250, 0.3)"
-            strokeWidth={2}
-            dot={false}
-            animationBegin={0}
-            animationDuration={1500}
-            animationEasing="ease-out"
-          />
-        </RadarChart>
-      </ResponsiveContainer>
-    </div>
-  )
-}
+
 
 export function StructuredResultsDisplay({ results, onReset }: StructuredResultsDisplayProps) {
   const [activeTab, setActiveTab] = useState<string>("sentiment")
@@ -604,8 +652,7 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
   const [animateWorkload, setAnimateWorkload] = useState(false)
   // Animation state for professor stars
   const [animateProfessors, setAnimateProfessors] = useState(false)
-  // Animation state for grade distribution radar
-  const [animateGrades, setAnimateGrades] = useState(false)
+
   // Animation state for advice section
   const [animateAdvice, setAnimateAdvice] = useState(false)
 
@@ -642,18 +689,7 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
   }, [activeTab])
 
   // Reset and trigger animations when grades tab becomes active
-  useEffect(() => {
-    if (activeTab === "grades") {
-      setAnimateGrades(false)
-      // Small delay to ensure reset, then trigger animation
-      const timer = setTimeout(() => {
-        setAnimateGrades(true)
-      }, 10)
-      return () => clearTimeout(timer)
-    } else {
-      setAnimateGrades(false)
-    }
-  }, [activeTab])
+
 
   // Reset and trigger animations when advice tab becomes active
   useEffect(() => {
@@ -678,7 +714,6 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
     { id: "difficulty", label: "Difficulty", icon: BarChart2 },
     { id: "professors", label: "Professors", icon: Users },
     { id: "advice", label: "Tips", icon: Lightbulb },
-    { id: "grades", label: "Grade Distribution", icon: FileText },
     { id: "reddit", label: "Relevant Reddit Posts", icon: MessageCircle },
     { id: "database", label: "UCR Class Difficulty Database Info", icon: Database },
   ]
@@ -716,6 +751,15 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
               <span className="flex items-center gap-2">
                 <Image src={googleSheetsLogo} alt="Google Sheets" width={16} height={16} className="object-contain" />
                 UCR Database analyzed
+              </span>
+            )}
+            {results.analysis_metadata?.rmp_enabled && results.analysis_metadata?.rmp_professors_count && results.analysis_metadata.rmp_professors_count > 0 && (
+              <span className="flex items-center gap-2">
+                <Image src={rmpLogo} alt="Rate My Professors" width={16} height={16} className="object-contain" />
+                {results.analysis_metadata.rmp_professors_count} professors
+                {results.analysis_metadata?.total_rmp_reviews && 
+                  ` and ${results.analysis_metadata.total_rmp_reviews} RMP reviews`
+                } analyzed
               </span>
             )}
           </div>
@@ -986,39 +1030,7 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
           </LiquidGlassContainer>
         )}
 
-        {/* Grade Distribution Tab */}
-        {activeTab === "grades" && (
-          <LiquidGlassContainer variant="default" disableInteractive={true} className="p-6">
-            <h3 className="text-xl font-bold text-white mb-4">Grade Distribution</h3>
-            
-            {data.grade_distribution ? (
-              <div className="space-y-6">
-                {/* Original Description */}
-                <div className="bg-white/5 border border-white/10 rounded-lg p-4">
-                  <h4 className="text-lg font-semibold text-white mb-2">Student Insights</h4>
-                  <p className="text-white/90 leading-relaxed">
-                    {data.grade_distribution}
-                  </p>
-                </div>
-                
-                {/* Radar Chart */}
-                <div className="bg-white/5 border border-white/10 rounded-lg p-4 pointer-events-none">
-                  <h4 className="text-lg font-semibold text-white mb-4 text-center">Grade Component Weights</h4>
-                  <GradeDistributionRadar gradeText={data.grade_distribution || ""} animate={animateGrades} />
-                  <p className="text-white/50 text-xs text-center mt-4 italic">
-                    *Please note this chart may not be fully accurate but instead is a general estimation.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <FileText className="h-12 w-12 text-white/40 mx-auto mb-4" />
-                <p className="text-white/60">No grade distribution information available</p>
-                <p className="text-white/40 text-sm mt-2">Check other tabs for course insights</p>
-              </div>
-            )}
-          </LiquidGlassContainer>
-        )}
+
 
         {/* Reddit Posts Tab */}
         {activeTab === "reddit" && hasRedditData && (
@@ -1223,7 +1235,7 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                   </div>
                   
                   {/* Summary Stats */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
                       <p className="text-2xl font-bold text-blue-300">{parsedData.reviews.length}</p>
                       <p className="text-white/60 text-sm">Total Reviews</p>
@@ -1233,6 +1245,12 @@ export function StructuredResultsDisplay({ results, onReset }: StructuredResults
                         {parsedData.reviews.filter(r => r.difficulty.includes('/10') && parseInt(r.difficulty) <= 3).length}
                       </p>
                       <p className="text-white/60 text-sm">Easy (1-3/10)</p>
+                    </div>
+                    <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
+                      <p className="text-2xl font-bold text-yellow-300">
+                        {parsedData.reviews.filter(r => r.difficulty.includes('/10') && parseInt(r.difficulty) >= 4 && parseInt(r.difficulty) <= 6).length}
+                      </p>
+                      <p className="text-white/60 text-sm">Moderate (4-6/10)</p>
                     </div>
                     <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
                       <p className="text-2xl font-bold text-red-300">

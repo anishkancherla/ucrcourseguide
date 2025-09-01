@@ -37,12 +37,12 @@ const LiquidGlassButton = React.forwardRef<HTMLButtonElement, LiquidGlassButtonP
         ref={ref}
         className={cn(
           "relative overflow-hidden transition-all duration-300",
-          // Safari-friendly fallbacks
+          // fallbacks for safari
           "bg-white/10 hover:bg-white/20 border border-white/20",
           "text-white shadow-lg hover:shadow-xl hover:scale-105",
-          // Enhanced backdrop blur with fallback
+          // backdrop blur
           "backdrop-blur-sm supports-[backdrop-filter]:bg-white/10",
-          // Ensure text contrast
+          // contrast
           "font-medium",
           className
         )}

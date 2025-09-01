@@ -227,4 +227,73 @@ class SheetsService:
                 formatted_data += f"Comments: {review.additional_comments}\n"
             formatted_data += "\n"
         
+        return formatted_data
+    
+    def get_reviews_for_professor_analysis(self, course_filter: str = "") -> List[ClassReview]:
+        """
+        🎯 PROFESSOR-FOCUSED ANALYSIS: Get reviews for AI professor filtering
+        
+        With course_filter: Get all reviews for that specific course
+        Without course_filter: Get reviews from popular courses for efficiency
+        """
+        try:
+            all_reviews = self.fetch_ucr_class_data()
+            
+            if course_filter:
+                # Filter reviews for specific course
+                course_upper = course_filter.upper()
+                filtered_reviews = [r for r in all_reviews if r.class_code.upper() == course_upper]
+                logger.info(f"📚 Found {len(filtered_reviews)} reviews for course {course_upper}")
+                return filtered_reviews
+            else:
+                # Get reviews from popular course prefixes for efficiency
+                popular_prefixes = ['CS', 'MATH', 'PSYC', 'BIOL', 'CHEM', 'PHYS', 'ENGL', 'HIST', 'ECON', 'STAT']
+                filtered_reviews = []
+                
+                for review in all_reviews:
+                    course_prefix = ''.join([c for c in review.class_code if c.isalpha()]).upper()
+                    if course_prefix in popular_prefixes:
+                        filtered_reviews.append(review)
+                
+                logger.info(f"📚 Found {len(filtered_reviews)} reviews from popular courses for professor analysis")
+                return filtered_reviews
+                
+        except Exception as e:
+            logger.error(f"Failed to get reviews for professor analysis: {e}")
+            return []
+    
+    def format_reviews_for_professor_ai(self, reviews: List[ClassReview], professor_name: str, course_filter: str = "") -> str:
+        """
+        🎯 FORMAT REVIEWS for AI to find professor mentions
+        """
+        if not reviews:
+            return ""
+        
+        context = f"with course filter {course_filter}" if course_filter else "across all courses"
+        formatted_data = f"UCR Class Reviews for Professor Analysis ({professor_name} {context})\n\n"
+        
+        # Group by course for better organization
+        by_course = {}
+        for review in reviews:
+            course = review.class_code.upper()
+            if course not in by_course:
+                by_course[course] = []
+            by_course[course].append(review)
+        
+        # Format each course's reviews
+        for course, course_reviews in by_course.items():
+            formatted_data += f"=== {course} ===\n"
+            
+            for i, review in enumerate(course_reviews, 1):
+                formatted_data += f"Review {i}:\n"
+                if review.date:
+                    formatted_data += f"Date: {review.date}\n"
+                if review.difficulty is not None:
+                    formatted_data += f"Difficulty: {review.difficulty}/10\n"
+                if review.additional_comments:
+                    formatted_data += f"Comments: {review.additional_comments}\n"
+                formatted_data += "\n"
+            
+            formatted_data += "---\n\n"
+        
         return formatted_data 

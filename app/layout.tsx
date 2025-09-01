@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   title: "UCR Course Guide",
 }
 
-// Footer Component
+// Footer 
 function Footer() {
   return (
     <footer className="relative z-10 mt-auto border-t border-white/10 bg-black/20 backdrop-blur-sm">

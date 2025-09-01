@@ -1,12 +1,110 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { SearchForm } from "@/components/search-form"
 import { ResultsDisplay } from "@/components/results-display"
 import { StructuredResultsDisplay } from "@/components/structured-results-display"
+import { ProfessorResultsDisplay } from "@/components/professor-results-display"
 import { Button } from "@/components/ui/button"
 import { Share2 } from "lucide-react"
 import { GradientBackground } from "@/components/gradient-background"
+
+// Real-time Progress Loading Component  
+const RealTimeLoadingSteps = ({ sessionId, searchType }: { sessionId: string; searchType: 'course' | 'professor' }) => {
+  const [currentMessage, setCurrentMessage] = useState("Starting analysis...")
+  const [progress, setProgress] = useState(0)
+  const [isConnected, setIsConnected] = useState(false)
+
+  useEffect(() => {
+    const apiBaseUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://courselens-production.up.railway.app' 
+      : 'http://localhost:8000'
+
+    const eventSource = new EventSource(`${apiBaseUrl}/api/progress/${sessionId}`)
+    
+    eventSource.onopen = () => {
+      console.log('SSE Connection opened for session:', sessionId)
+      setIsConnected(true)
+    }
+    
+    eventSource.onmessage = (event) => {
+      try {
+        console.log('SSE Message received:', event.data)
+        const data = JSON.parse(event.data)
+        
+        if (data.heartbeat) {
+          console.log('SSE Heartbeat received')
+          return
+        }
+        
+        if (data.step && data.message) {
+          console.log('Progress update:', data)
+          setCurrentMessage(data.message)
+          if (data.progress !== undefined) {
+            setProgress(data.progress)
+          }
+          
+          // Special handling for connection states
+          if (data.step === 'connected') {
+            setIsConnected(true)
+          } else if (data.step === 'waiting') {
+            setIsConnected(false)
+          }
+        }
+        
+        if (data.step === 'complete' || data.step === 'error') {
+          console.log('SSE Connection closing, step:', data.step)
+          eventSource.close()
+        }
+      } catch (error) {
+        console.error('Error parsing progress data:', error, 'Raw data:', event.data)
+      }
+    }
+    
+    eventSource.onerror = (error) => {
+      console.error('Progress stream error:', error)
+      console.error('EventSource readyState:', eventSource.readyState)
+      setIsConnected(false)
+      
+      // If connection fails completely, show fallback message
+      if (eventSource.readyState === EventSource.CLOSED) {
+        setCurrentMessage("Connection lost - analysis continuing in background...")
+      }
+    }
+    
+    return () => {
+      eventSource.close()
+    }
+  }, [sessionId])
+
+  return (
+    <div className="flex flex-col items-center justify-center text-white/80">
+      <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-white/80"></div>
+      
+      {/* Progress Bar */}
+      <div className="mt-4 w-64 bg-white/20 rounded-full h-2">
+        <div 
+          className="bg-blue-400 h-2 rounded-full transition-all duration-500 ease-out"
+          style={{ width: `${progress}%` }}
+        ></div>
+      </div>
+      
+      {/* Dynamic Message */}
+      <div className="mt-4 h-8 flex items-center justify-center overflow-hidden">
+        <p 
+          key={currentMessage} // Key forces re-render for animation
+          className="text-lg animate-in fade-in-0 slide-in-from-bottom-2 duration-500 ease-out text-center"
+        >
+          {currentMessage}
+        </p>
+      </div>
+      
+      <p className="mt-2 text-sm text-white/60">
+        this may take 20-40 seconds
+      </p>
+    </div>
+  )
+}
 
 interface RedditLink {
   title: string
@@ -88,7 +186,6 @@ interface SearchResults {
       minority_opinions?: string[]
     }
     common_pitfalls?: string[]
-    grade_distribution?: string
   }
   analysis_metadata?: {
     total_posts_analyzed: number
@@ -98,22 +195,127 @@ interface SearchResults {
   }
 }
 
+interface ProfessorSearchResults {
+  success: boolean
+  professor_name: string
+  course_filter?: string
+  data_sources: {
+    rmp_professors_found: number
+    reddit_posts_analyzed: number
+    reddit_comments_analyzed: number
+    ucr_database_included: boolean
+    total_rmp_reviews: number
+  }
+  analysis: {
+    success: boolean
+    analysis: {
+      professor_info: {
+        name: string
+        course_focus: string
+        primary_rating: number
+        rating_source: string
+        max_rating: number
+        department: string
+        rmp_link?: string
+        total_reviews_analyzed: number
+        sentiment_distribution: {
+          positive: number
+          neutral: number
+          negative: number
+        }
+      }
+      teaching_analysis: {
+        teaching_style: string
+        strengths: string[]
+        weaknesses: string[]
+        grading_style: string
+        student_support: string
+      }
+      reviews: Array<{
+        source: string
+        date: string
+        course: string
+        rating: number
+        text: string
+        tags?: string[]
+      }>
+      course_breakdown: {
+        courses_taught: string[]
+        most_reviewed_course: string
+        course_specific_notes: string
+      }
+      student_advice: {
+        tips_for_success: string[]
+        what_to_expect: string[]
+        who_should_take: string
+        who_should_avoid: string
+      }
+    }
+  }
+}
+
 export default function HomePage() {
   const [results, setResults] = useState<SearchResults | null>(null)
+  const [professorResults, setProfessorResults] = useState<ProfessorSearchResults | null>(null)
+  const [searchType, setSearchType] = useState<'course' | 'professor'>('course')
   const [isLoading, setIsLoading] = useState(false)
   const [showShareToast, setShowShareToast] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(null)
 
-  const handleSearch = async (query: string) => {
-    if (!query) return
+  // Course selection handler for professor results
+  const handleCourseSelect = async (professorName: string, courseCode: string) => {
     setIsLoading(true)
+    setError(null)
     setResults(null)
+    setProfessorResults(null)
+    
+    try {
+      // Trigger new professor search
+      await handleSearch(professorName, 'professor')
+    } catch (error) {
+      console.error('Error in course selection:', error)
+      setError('Failed to search for the selected course')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSearch = async (query: string, type: 'course' | 'professor' = 'course') => {
+    if (!query) return
+    
+    // Generate session ID for progress tracking
+    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    setSessionId(newSessionId)
+    
+    setIsLoading(true)
+    setSearchType(type)
+    
+    // Clear previous results
+    setResults(null)
+    setProfessorResults(null)
 
     try {
-      // call our backend for structured ai course analysis
       const apiBaseUrl = process.env.NODE_ENV === 'production' 
         ? 'https://courselens-production.up.railway.app' 
         : 'http://localhost:8000'
-      const response = await fetch(`${apiBaseUrl}/api/course-analysis-structured?keyword=${encodeURIComponent(query)}&max_posts=100&max_comments=100`)
+      
+      let response: Response
+      
+      if (type === 'professor') {
+        // Professor search
+        const params = new URLSearchParams({
+          professor_name: query,
+          max_posts: '100',
+          max_comments_per_post: '100',
+          session_id: newSessionId
+        })
+        
+        response = await fetch(`${apiBaseUrl}/api/professor-analysis?${params}`)
+      } else {
+        // Course search  
+        response = await fetch(`${apiBaseUrl}/api/course-analysis-structured?keyword=${encodeURIComponent(query)}&max_posts=100&max_comments=100&session_id=${encodeURIComponent(newSessionId)}`)
+      }
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -121,12 +323,44 @@ export default function HomePage() {
       
       const data = await response.json()
       
-      if (data.success && data.analysis && data.analysis.structured_data) {
-        // get reddit links from raw data if ai worked
-        const links: RedditLink[] = []
-        
-        // if we have raw_data, extract links; otherwise use metadata for context
-        if (data.raw_data && data.raw_data.posts) {
+      if (type === 'professor') {
+        // Handle professor search results
+        setProfessorResults(data)  // Pass all data including errors with available_courses
+      } else {
+        // Handle course search results
+        if (data.success && data.analysis && data.analysis.structured_data) {
+          // get reddit links from raw data if ai worked
+          const links: RedditLink[] = []
+          
+          // if we have raw_data, extract links; otherwise use metadata for context
+          if (data.raw_data && data.raw_data.posts) {
+            data.raw_data.posts.forEach((postData: PostData) => {
+              if (postData.post) {
+                links.push({
+                  title: postData.post.title,
+                  url: postData.post.url,
+                  subreddit: postData.post.subreddit,
+                  score: postData.post.score,
+                  comments: postData.post.num_comments
+                })
+              }
+            })
+          }
+
+          // use structured data
+          setResults({
+            summary: data.analysis.structured_data.overall_sentiment?.summary || 'Analysis completed successfully.',
+            links: links.slice(0, 8), // show top reddit posts
+            totalPosts: data.posts_analyzed,
+            keyword: query,
+            ucr_database_included: data.ucr_database_included,
+            raw_data: data.raw_data,
+            structured_data: data.analysis.structured_data, // NEW: structured data
+            analysis_metadata: data.analysis.analysis_metadata
+          })
+        } else if (data.success && data.raw_data) {
+          // fallback: if ai failed but we have raw data
+          const links: RedditLink[] = []
           data.raw_data.posts.forEach((postData: PostData) => {
             if (postData.post) {
               links.push({
@@ -138,53 +372,47 @@ export default function HomePage() {
               })
             }
           })
+
+          setResults({
+            summary: `Found ${data.posts_analyzed} posts about '${query}' in r/ucr. AI analysis temporarily unavailable, but you can explore the community discussions below.`,
+            links: links.slice(0, 8),
+            totalPosts: data.posts_analyzed,
+            keyword: query,
+            ucr_database_included: data.ucr_database_included,
+            raw_data: data.raw_data
+          })
+        } else {
+          throw new Error('No course data found')
         }
-
-        // use structured data
-        setResults({
-          summary: data.analysis.structured_data.overall_sentiment?.summary || 'Analysis completed successfully.',
-          links: links.slice(0, 8), // show top reddit posts
-          totalPosts: data.posts_analyzed,
-          keyword: query,
-          ucr_database_included: data.ucr_database_included,
-          raw_data: data.raw_data,
-          structured_data: data.analysis.structured_data, // NEW: structured data
-          analysis_metadata: data.analysis.analysis_metadata
-        })
-      } else if (data.success && data.raw_data) {
-        // fallback: if ai failed but we have raw data
-        const links: RedditLink[] = []
-        data.raw_data.posts.forEach((postData: PostData) => {
-          if (postData.post) {
-            links.push({
-              title: postData.post.title,
-              url: postData.post.url,
-              subreddit: postData.post.subreddit,
-              score: postData.post.score,
-              comments: postData.post.num_comments
-            })
-          }
-        })
-
-        setResults({
-          summary: `Found ${data.posts_analyzed} posts about '${query}' in r/ucr. AI analysis temporarily unavailable, but you can explore the community discussions below.`,
-          links: links.slice(0, 8),
-          totalPosts: data.posts_analyzed,
-          keyword: query,
-          ucr_database_included: data.ucr_database_included,
-          raw_data: data.raw_data
-        })
-      } else {
-        throw new Error('No course data found')
       }
     } catch (error) {
-      console.error('Course analysis error:', error)
+      console.error(`${type === 'professor' ? 'Professor' : 'Course'} analysis error:`, error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-      setResults({
-        summary: `Sorry, we couldn't analyze '${query}' right now. Please make sure the backend server is running and try again. Error: ${errorMessage}`,
-        links: [],
-        error: errorMessage
-      })
+      
+      if (type === 'professor') {
+        setProfessorResults({
+          success: false,
+          professor_name: query,
+          course_filter: undefined,
+          data_sources: {
+            rmp_professors_found: 0,
+            reddit_posts_analyzed: 0,
+            reddit_comments_analyzed: 0,
+            ucr_database_included: false,
+            total_rmp_reviews: 0
+          },
+          analysis: {
+            success: false,
+            analysis: {} as any
+          }
+        })
+      } else {
+        setResults({
+          summary: `Sorry, we couldn't analyze '${query}' right now. Please make sure the backend server is running and try again. Error: ${errorMessage}`,
+          links: [],
+          error: errorMessage
+        })
+      }
     } finally {
       setIsLoading(false)
     }
@@ -193,9 +421,14 @@ export default function HomePage() {
   const handleShare = async () => {
     try {
       const shareUrl = window.location.href
-      const shareText = results 
-        ? `Check out this UCR course analysis for ${results.keyword?.toUpperCase()}: ${shareUrl}`
-        : `UCR Course Guide - Get insights on UCR courses: ${shareUrl}`
+      let shareText = `UCR Course Guide - Get insights on UCR courses and professors: ${shareUrl}`
+      
+      if (results && results.keyword) {
+        shareText = `Check out this UCR course analysis for ${results.keyword.toUpperCase()}: ${shareUrl}`
+      } else if (professorResults && professorResults.professor_name) {
+        const courseText = professorResults.course_filter ? ` for ${professorResults.course_filter}` : ''
+        shareText = `Check out this UCR professor analysis for ${professorResults.professor_name}${courseText}: ${shareUrl}`
+      }
 
       // Try to use native Web Share API if available
       if (navigator.share) {
@@ -223,6 +456,14 @@ export default function HomePage() {
     }
   }
 
+  const handleReset = () => {
+    setResults(null)
+    setProfessorResults(null)
+    setSearchType('course')
+    setIsLoading(false)
+    setError(null)
+  }
+
   return (
     <div className="relative min-h-screen w-full">
       <GradientBackground />
@@ -247,23 +488,28 @@ export default function HomePage() {
           </div>
           <div
             className={`w-full space-y-8 transition-all duration-500 ${
-              results ? "max-w-full px-4" : "max-w-2xl"
+              results || professorResults ? "max-w-full px-4" : "max-w-2xl"
             }`}
           >
-            {!results && !isLoading && <SearchForm onSearch={handleSearch} />}
-            {isLoading && (
-              <div className="flex flex-col items-center justify-center text-white/80">
-                <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-white/80"></div>
-                <p className="mt-4 text-lg">Analyzing UCR community discussions...</p>
-                <p className="mt-2 text-sm text-white/60">this may take 20-40 seconds</p>
-              </div>
-            )}
+            {!results && !professorResults && !isLoading && <SearchForm onSearch={handleSearch} />}
+            {isLoading && sessionId && <RealTimeLoadingSteps sessionId={sessionId} searchType={searchType} />}
+            
+            {/* Course Results */}
             {results && results.structured_data && (
-              <StructuredResultsDisplay results={results} onReset={() => setResults(null)} />
+              <StructuredResultsDisplay results={results} onReset={() => { setResults(null); setProfessorResults(null) }} />
             )}
             {results && !results.structured_data && (
-              <ResultsDisplay results={results} onReset={() => setResults(null)} />
+              <ResultsDisplay results={results} onReset={() => { setResults(null); setProfessorResults(null) }} />
             )}
+            
+            {/* Professor Results */}
+            {professorResults ? (
+              <ProfessorResultsDisplay 
+                results={professorResults} 
+                onReset={handleReset}
+                onCourseSelect={handleCourseSelect}
+              />
+            ) : null}
           </div>
         </main>
       </div>
