@@ -110,11 +110,8 @@ async def get_progress_stream(session_id: str):
                     yield f"data: {json.dumps({'heartbeat': True})}\n\n"
                     timeout_count += 1
             else:
-                # session not found, send waiting message
-                if timeout_count % 10 == 0:  # Every 10 seconds
-                    yield f"data: {json.dumps({'step': 'waiting', 'message': f'Waiting for session {session_id}...', 'progress': 0})}\n\n"
-                else:
-                    yield f"data: {json.dumps({'heartbeat': True})}\n\n"
+                # session not found, just send heartbeat
+                yield f"data: {json.dumps({'heartbeat': True})}\n\n"
                 timeout_count += 1
             
             await asyncio.sleep(1)  # Check every second
