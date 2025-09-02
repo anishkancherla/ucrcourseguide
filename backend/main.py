@@ -408,7 +408,7 @@ async def get_enhanced_course_analysis(
         post_ids = [post["id"] for post in ucr_posts[:max_posts]]
         
         logger.info("Fetching Reddit full content and UCR database data in parallel...")
-        progress.emit("fetching_data", "Fetching Reddit comments and Google Sheets data...", 20)
+        progress.emit("fetching_data", "Fetching Reddit/Google Sheets data...", 20)
         
         reddit_task = reddit_service.get_multiple_posts_for_ai(post_ids, max_comments_per_post)
         sheets_task = asyncio.to_thread(sheets_service.format_for_ai_analysis, keyword.strip())

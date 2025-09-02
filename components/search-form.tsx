@@ -130,7 +130,7 @@ export function SearchForm({ onSearch }: SearchFormProps) {
         {searchType === 'course' ? (
           <p>Search for any UCR course to see difficulty, professor reviews, study tips, and student experiences.</p>
         ) : (
-          <p>Search for any UCR professor to see their ratings, teaching style, and student reviews across all courses they teach.</p>
+          <p>Search for any UCR professor to see their ratings, teaching style, and student reviews.</p>
         )}
       </div>
     </LiquidGlassContainer>
