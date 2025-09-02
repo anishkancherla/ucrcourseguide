@@ -88,7 +88,7 @@ async def get_progress_stream(session_id: str):
         session_found = False
         
         # send initial connection confirmation
-        yield f"data: {json.dumps({'step': 'connected', 'message': f'Connected to session {session_id}', 'progress': 0})}\n\n"
+        yield f"data: {json.dumps({'step': 'connected', 'message': 'Connecting...', 'progress': 0})}\n\n"
         
         while timeout_count < max_timeout:
             if session_id in progress_tracker:
