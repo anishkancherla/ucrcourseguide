@@ -84,7 +84,7 @@ const RealTimeLoadingSteps = ({ sessionId, searchType }: { sessionId: string; se
       {/* Progress Bar */}
       <div className="mt-4 w-64 bg-white/20 rounded-full h-2">
         <div 
-          className="bg-blue-400 h-2 rounded-full transition-all duration-500 ease-out"
+          className="bg-white h-2 rounded-full transition-all duration-500 ease-out"
           style={{ width: `${progress}%` }}
         ></div>
       </div>

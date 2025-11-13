@@ -405,7 +405,6 @@ async def get_enhanced_course_analysis(
         post_ids = [post["id"] for post in ucr_posts[:max_posts]]
         
         logger.info("Fetching Reddit full content and UCR database data in parallel...")
-        progress.emit("fetching_data", "Fetching Reddit/Google Sheets data...", 20)
         
         reddit_task = reddit_service.get_multiple_posts_for_ai(post_ids, max_comments_per_post)
         sheets_task = asyncio.to_thread(sheets_service.format_for_ai_analysis, keyword.strip())
@@ -423,7 +422,7 @@ async def get_enhanced_course_analysis(
         
         # STEP 2: 🎯 FIRST ANALYSIS - Determine actual professors from Reddit + Google Sheets
         logger.info("Step 2: Running initial analysis to determine actual professors from Reddit + Google Sheets...")
-        progress.emit("initial_analysis", "Analyzing data...", 40)
+        progress.emit("initial_analysis", "Analyzing data...", 20)
         
         initial_course_data = {
             "course": keyword.strip(),
